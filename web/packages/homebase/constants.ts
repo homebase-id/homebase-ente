@@ -31,5 +31,15 @@ export const passwordFile = {
     fileType: 7200,
 } as const;
 
+/**
+ * The file on {@link enteDrive} that holds Ente's key attributes (the master
+ * key, locked with the Ente password). Written and read by the proxy for
+ * PUT /users/attributes and GET /users/session-validity/v2.
+ */
+export const keyAttributesFile = {
+    uniqueId: "d269c173-71a3-4fe4-8ee4-8d4da5c929e7",
+    fileType: 7201,
+} as const;
+
 /** Where YouAuth sends the browser back to, relative to the app's origin. */
 export const homebaseCallbackPath = "/homebase/callback";
