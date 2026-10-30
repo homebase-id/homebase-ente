@@ -128,6 +128,14 @@ const Page: React.FC = () => {
                     ? t("homebase_password_created")
                     : t("homebase_password_found")}
             </Message>
+            <Explanation>
+                <h2>{t("homebase_explain_what_title")}</h2>
+                <p>{t("homebase_explain_what")}</p>
+                <h2>{t("homebase_explain_why_title")}</h2>
+                <p>{t("homebase_explain_why")}</p>
+                <h2>{t("homebase_explain_secure_title")}</h2>
+                <p>{t("homebase_explain_secure")}</p>
+            </Explanation>
             <Fingerprint>
                 {t("homebase_password_fingerprint", { fingerprint })}
             </Fingerprint>
@@ -169,4 +177,18 @@ const Faint = styled("div")({
 const Fingerprint = styled(Faint)({
     fontFamily: "monospace",
     margin: "12px 0",
+});
+
+const Explanation = styled("div")({
+    marginTop: "16px",
+    fontSize: "14px",
+    lineHeight: "20px",
+    color: "var(--auth-ui-text-muted)",
+    "& h2": {
+        margin: "12px 0 4px",
+        fontSize: "14px",
+        fontWeight: 600,
+        color: "var(--auth-ui-text)",
+    },
+    "& p": { margin: 0 },
 });
