@@ -32,7 +32,7 @@ import { t } from "i18next";
 import { z } from "zod";
 
 /**
- * The Ente → Homebase proxy (proxy/ in this repo) that stands in for Ente's
+ * The Ente → Homebase proxy (homebase-id/ente-homebase-proxy) that stands in for Ente's
  * server when signed in with Homebase.
  */
 export const homebaseProxyOrigin =

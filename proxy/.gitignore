@@ -1,4 +1,0 @@
-bin/
-obj/
-# Homebase credentials from scripts/consent.mjs: secrets, never commit.
-.credentials*.json

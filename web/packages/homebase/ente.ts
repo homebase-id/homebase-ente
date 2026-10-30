@@ -1,7 +1,7 @@
 // What the Ente app needs from a Homebase sign-in to talk to the proxy
-// (proxy/ in this repo): the X-Auth-Token it sends on every request, and the
+// (homebase-id/ente-homebase-proxy): the X-Auth-Token it sends on every request, and the
 // numeric Ente user ID that stands for the identity. Both are computed the
-// same way by the proxy (proxy/src/EnteHomebaseProxy/EnteIds.cs).
+// same way by the proxy (EnteIds.cs; see its CONTRACT.md).
 
 import { toBase64, toBase64Url, utf8 } from "./bytes";
 import { sha256 } from "./crypto";

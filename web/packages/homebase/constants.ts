@@ -1,3 +1,6 @@
+// The proxy (homebase-id/ente-homebase-proxy) keeps the same values in its
+// contract/ente-homebase.json; change both together (its CONTRACT.md).
+//
 // Ente Photos' own Homebase app registration and the fixed ids of what it
 // keeps on its drive. The ids were generated once; never change them (the slug
 // is immutable once an identity has registered the app, and the drive and

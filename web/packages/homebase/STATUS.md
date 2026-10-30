@@ -3,12 +3,12 @@
 ## Update 2026-10-30: into the gallery, with uploads
 
 **Continue to Ente Photos** (on `/homebase`) now logs in to Ente through the proxy
-(`proxy/`, http://localhost:8095): Ente's API goes to the proxy, and Ente's keys are set up or
+([homebase-id/ente-homebase-proxy](https://github.com/homebase-id/ente-homebase-proxy), http://localhost:8095): Ente's API goes to the proxy, and Ente's keys are set up or
 unlocked with the hidden password (`apps/photos/src/services/homebase.ts`, `logInToEnte`).
 The gallery works, and uploads are stored on Homebase. In Homebase mode
 (`ente-base/origins` `isHomebaseMode`) the client sends its token only in headers (downloads
 and upload PUTs), and uploads each file in one PUT. Checked end to end; see
-`proxy/STATUS.md`, "Milestones". Run both: `npm run dev:photos-homebase` and the proxy.
+the proxy repo's STATUS.md, "Milestones"; what the two share is in its CONTRACT.md. Run both: `npm run dev:photos-homebase` and the proxy.
 
 ## Todd: approve consent
 
