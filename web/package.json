@@ -50,6 +50,7 @@
         "dev:payments": "npm run dev --workspace payments",
         "dev:photobook": "npm run build:prelogin-wasm && npm run build:photobook-wasm && npm exec --workspace photobook -- next dev --webpack -p 3014",
         "dev:photos": "npm run build:prelogin-wasm && npm run build:photos-wasm && npm exec --workspace photos -- next dev --webpack -p 3000",
+        "dev:photos-homebase": "npm run build:prelogin-wasm && npm run build:photos-wasm && npm exec --workspace photos -- next dev --webpack -p 3020",
         "dev:share": "npm run build:prelogin-wasm && npm exec --workspace share -- next dev --webpack -p 3005",
         "dev:space": "npm run build:prelogin-wasm && npm run build:space-wasm && npm exec --workspace space -- next dev --webpack -p 3013",
         "dev:twoof3": "npm exec --workspace twoof3 -- next dev --webpack -p 3012",
