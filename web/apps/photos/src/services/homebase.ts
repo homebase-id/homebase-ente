@@ -34,9 +34,15 @@ import { z } from "zod";
 /**
  * The Ente → Homebase proxy (homebase-id/ente-homebase-proxy) that stands in for Ente's
  * server when signed in with Homebase.
+ *
+ * A path such as "/api" means the proxy that serves this app, on the same
+ * site: the proxy's own build sets that.
  */
-export const homebaseProxyOrigin =
-    process.env.NEXT_PUBLIC_ENTE_HOMEBASE_PROXY ?? "http://localhost:8095";
+export const homebaseProxyOrigin = () => {
+    const proxy =
+        process.env.NEXT_PUBLIC_ENTE_HOMEBASE_PROXY ?? "http://localhost:8095";
+    return proxy.startsWith("/") ? `${window.location.origin}${proxy}` : proxy;
+};
 
 let _store: CredentialsStore | undefined;
 
@@ -135,7 +141,7 @@ const unlockMasterKey = async (
 export const logInToEnte = async (drive: HomebaseDrive, password: string) => {
     const { identity } = drive.session;
     const token = xAuthToken(drive.session);
-    await setKV("apiOrigin", homebaseProxyOrigin);
+    await setKV("apiOrigin", homebaseProxyOrigin());
     // Credentials only in headers, single-part uploads (ente-base isHomebaseMode).
     await setKV("homebase", "1");
     await saveAuthToken(token);
