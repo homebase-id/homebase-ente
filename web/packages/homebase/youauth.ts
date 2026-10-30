@@ -101,7 +101,8 @@ export const normalizeIdentity = (identity: string) =>
         .replace(/[/?#].*$/, "")
         .replace(/\.$/, "");
 
-const hostnameRegex = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9-]{2,}(:\d+)?$/;
+const hostnameRegex =
+    /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9-]{2,}(:\d+)?$/;
 
 export const isValidIdentity = (identity: string) =>
     hostnameRegex.test(normalizeIdentity(identity));
@@ -235,7 +236,10 @@ export const completeSignIn = async (
     const remotePublicKey = callback.get("public_key");
     const salt = callback.get("salt");
     if (!remotePublicKey || !salt) {
-        throw new YouAuthError("other", "The callback has no public_key or salt");
+        throw new YouAuthError(
+            "other",
+            "The callback has no public_key or salt",
+        );
     }
 
     const privateKey = await privateKeyFromJwk(pending.privateKeyJwk);
@@ -258,7 +262,10 @@ export const completeSignIn = async (
     }
     const token = (await response.json()) as TokenResponse;
     if ((token.cipher ?? "aes-cbc") != "aes-gcm") {
-        throw new YouAuthError("exchange-failed", "Asked for aes-gcm, got aes-cbc");
+        throw new YouAuthError(
+            "exchange-failed",
+            "Asked for aes-gcm, got aes-cbc",
+        );
     }
     if (!token.zkAppKey) {
         throw new YouAuthError(

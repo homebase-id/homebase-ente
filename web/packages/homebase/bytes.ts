@@ -8,7 +8,9 @@ export const fromUtf8 = (bytes: Uint8Array): string =>
     new TextDecoder().decode(bytes);
 
 export const concat = (...parts: Uint8Array[]): Bytes => {
-    const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+    const out = new Uint8Array(
+        parts.reduce((sum, part) => sum + part.length, 0),
+    );
     let offset = 0;
     for (const part of parts) {
         out.set(part, offset);
@@ -55,7 +57,8 @@ const crcTable = (() => {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
         let c = n;
-        for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        for (let k = 0; k < 8; k++)
+            c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
         table[n] = c >>> 0;
     }
     return table;

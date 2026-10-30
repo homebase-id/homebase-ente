@@ -4,7 +4,7 @@
 // byte. Random test keys only.
 
 import { describe, expect, test } from "vitest";
-import { fromBase64, fromUtf8, toBase64 } from "./bytes";
+import { crc32, fromBase64, fromUtf8, toBase64 } from "./bytes";
 import { decryptEnvelope } from "./context";
 import {
     aesCbcDecrypt,
@@ -24,7 +24,6 @@ import {
     zkSeal,
     zkUnseal,
 } from "./crypto";
-import { crc32 } from "./bytes";
 import vectors from "./vectors.json";
 
 const b = fromBase64;
@@ -32,26 +31,38 @@ const b = fromBase64;
 describe("matches the Immich TypeScript client", () => {
     test("AES-CBC", async () => {
         const { key, iv, plain, cipher } = vectors.aesCbc;
-        expect(toBase64(await aesCbcEncrypt(b(key), b(iv), b(plain)))).toBe(cipher);
-        expect(toBase64(await aesCbcDecrypt(b(key), b(iv), b(cipher)))).toBe(plain);
+        expect(toBase64(await aesCbcEncrypt(b(key), b(iv), b(plain)))).toBe(
+            cipher,
+        );
+        expect(toBase64(await aesCbcDecrypt(b(key), b(iv), b(cipher)))).toBe(
+            plain,
+        );
     });
 
     test("AES-GCM", async () => {
         const { key, nonce, plain, cipher } = vectors.aesGcm;
-        expect(toBase64(await aesGcmEncrypt(b(key), b(nonce), b(plain)))).toBe(cipher);
-        expect(toBase64(await aesGcmDecrypt(b(key), b(nonce), b(cipher)))).toBe(plain);
+        expect(toBase64(await aesGcmEncrypt(b(key), b(nonce), b(plain)))).toBe(
+            cipher,
+        );
+        expect(toBase64(await aesGcmDecrypt(b(key), b(nonce), b(cipher)))).toBe(
+            plain,
+        );
     });
 
     test("AES-GCM refuses a modified byte", async () => {
         const { key, nonce, cipher } = vectors.aesGcm;
         const tampered = b(cipher);
         tampered[3]! ^= 1;
-        await expect(aesGcmDecrypt(b(key), b(nonce), tampered)).rejects.toThrow();
+        await expect(
+            aesGcmDecrypt(b(key), b(nonce), tampered),
+        ).rejects.toThrow();
     });
 
     test("HKDF-SHA256", async () => {
         const { ikm, salt, okm } = vectors.hkdf;
-        expect(toBase64(await hkdfSha256(b(ikm), b(salt), new Uint8Array(0)))).toBe(okm);
+        expect(
+            toBase64(await hkdfSha256(b(ikm), b(salt), new Uint8Array(0))),
+        ).toBe(okm);
     });
 
     test("SHA-256", async () => {
@@ -65,14 +76,21 @@ describe("matches the Immich TypeScript client", () => {
     });
 
     test("P-384 keys: JWK and raw point", async () => {
-        const { recipientPrivateJwk, recipientPublicJwkJson, recipientRawPoint } =
-            vectors.zkSeal;
+        const {
+            recipientPrivateJwk,
+            recipientPublicJwkJson,
+            recipientRawPoint,
+        } = vectors.zkSeal;
         const privateKey = await privateKeyFromJwk(recipientPrivateJwk);
         expect(toBase64(await rawPoint(await publicKeyOf(privateKey)))).toBe(
             recipientRawPoint,
         );
         expect(
-            toBase64(await rawPoint(await publicKeyFromJwkJson(recipientPublicJwkJson))),
+            toBase64(
+                await rawPoint(
+                    await publicKeyFromJwkJson(recipientPublicJwkJson),
+                ),
+            ),
         ).toBe(recipientRawPoint);
     });
 
@@ -99,14 +117,20 @@ describe("matches the Immich TypeScript client", () => {
     });
 
     test("ZkSeal: round trip", async () => {
-        const { recipientPrivateJwk, recipientPublicJwkJson, plain } = vectors.zkSeal;
+        const { recipientPrivateJwk, recipientPublicJwkJson, plain } =
+            vectors.zkSeal;
         const sealed = await zkSeal(
             b(plain),
             await publicKeyFromJwkJson(recipientPublicJwkJson),
         );
         expect(sealed.length).toBe(1 + 4 + 97 + 12 + 16 + 16);
         expect(
-            toBase64(await zkUnseal(sealed, await privateKeyFromJwk(recipientPrivateJwk))),
+            toBase64(
+                await zkUnseal(
+                    sealed,
+                    await privateKeyFromJwk(recipientPrivateJwk),
+                ),
+            ),
         ).toBe(plain);
     });
 
@@ -119,6 +143,8 @@ describe("matches the Immich TypeScript client", () => {
 
     test("shared-secret envelope", async () => {
         const { sharedSecret, plain, envelope } = vectors.envelope;
-        expect(fromUtf8(await decryptEnvelope(b(sharedSecret), envelope))).toBe(plain);
+        expect(fromUtf8(await decryptEnvelope(b(sharedSecret), envelope))).toBe(
+            plain,
+        );
     });
 });

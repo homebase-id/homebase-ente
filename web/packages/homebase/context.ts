@@ -2,7 +2,14 @@
 // keys), and the identity's public profile. Ported from the Immich Homebase
 // client (packages/homebase-client/src/web/keys.ts).
 
-import { type Bytes, fromBase64, fromUtf8, randomBytes, toBase64, utf8 } from "./bytes";
+import {
+    type Bytes,
+    fromBase64,
+    fromUtf8,
+    randomBytes,
+    toBase64,
+    utf8,
+} from "./bytes";
 import { aesCbcDecrypt, aesCbcEncrypt, openZkLock } from "./crypto";
 import { YouAuthError } from "./youauth";
 
@@ -74,11 +81,16 @@ export const getSecurityContext = async (
         );
     }
     if (!response.ok) {
-        throw new YouAuthError("other", `auth/context: HTTP ${response.status}`);
+        throw new YouAuthError(
+            "other",
+            `auth/context: HTTP ${response.status}`,
+        );
     }
     const body: unknown = await response.json();
     return isEnvelope(body)
-        ? JSON.parse(fromUtf8(await decryptEnvelope(credentials.sharedSecret, body)))
+        ? JSON.parse(
+              fromUtf8(await decryptEnvelope(credentials.sharedSecret, body)),
+          )
         : body;
 };
 
@@ -118,7 +130,10 @@ export const openDriveKey = (
         sameGuid(g.permissionedDrive?.drive?.alias, driveAlias),
     );
     if (!grant) {
-        throw new YouAuthError("unauthorized", "This app has no access to its drive");
+        throw new YouAuthError(
+            "unauthorized",
+            "This app has no access to its drive",
+        );
     }
     if (!grant.zkAppKeyEncryptedStorageKey) {
         throw new YouAuthError(

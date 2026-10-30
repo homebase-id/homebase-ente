@@ -4,7 +4,14 @@
 // - ZkSeal v1: src/services/Odin.Services/Security/ZeroKnowledge/ZkSeal.cs
 // - zkLock: docs/zero-knowledge-drive-api-plan.md 3.5
 
-import { type Bytes, concat, crc32, fromBase64, randomBytes, utf8 } from "./bytes";
+import {
+    type Bytes,
+    concat,
+    crc32,
+    fromBase64,
+    randomBytes,
+    utf8,
+} from "./bytes";
 
 const subtle = () => globalThis.crypto.subtle;
 
@@ -17,17 +24,27 @@ const cbcKey = (key: Bytes) =>
 /** AES-128-CBC with PKCS7 (the shared-secret envelope). */
 export const aesCbcEncrypt = async (key: Bytes, iv: Bytes, data: Bytes) =>
     new Uint8Array(
-        await subtle().encrypt({ name: "AES-CBC", iv }, await cbcKey(key), data),
+        await subtle().encrypt(
+            { name: "AES-CBC", iv },
+            await cbcKey(key),
+            data,
+        ),
     );
 
 export const aesCbcDecrypt = async (key: Bytes, iv: Bytes, data: Bytes) =>
     new Uint8Array(
-        await subtle().decrypt({ name: "AES-CBC", iv }, await cbcKey(key), data),
+        await subtle().decrypt(
+            { name: "AES-CBC", iv },
+            await cbcKey(key),
+            data,
+        ),
     );
 
 /** AES-GCM: 12-byte nonce, 16-byte tag appended, no associated data. */
 export const aesGcmEncrypt = async (key: Bytes, nonce: Bytes, data: Bytes) => {
-    const k = await subtle().importKey("raw", key, "AES-GCM", false, ["encrypt"]);
+    const k = await subtle().importKey("raw", key, "AES-GCM", false, [
+        "encrypt",
+    ]);
     return new Uint8Array(
         await subtle().encrypt({ name: "AES-GCM", iv: nonce }, k, data),
     );
@@ -38,7 +55,9 @@ export const aesGcmDecrypt = async (
     nonce: Bytes,
     cipherAndTag: Bytes,
 ) => {
-    const k = await subtle().importKey("raw", key, "AES-GCM", false, ["decrypt"]);
+    const k = await subtle().importKey("raw", key, "AES-GCM", false, [
+        "decrypt",
+    ]);
     return new Uint8Array(
         await subtle().decrypt({ name: "AES-GCM", iv: nonce }, k, cipherAndTag),
     );
@@ -81,15 +100,30 @@ const p384 = { name: "ECDH", namedCurve: "P-384" } as const;
 export const generateP384KeyPair = () =>
     subtle().generateKey(p384, true, ["deriveBits"]);
 
-export const publicKeyToJwkJson = async (publicKey: CryptoKey) => {
-    const { kty, crv, x, y } = await subtle().exportKey("jwk", publicKey);
-    return JSON.stringify({ kty, crv, x, y });
+/** Only the public fields of an EC JWK (drops `d`, `key_ops`, `ext`). */
+const publicJwk = ({ kty, crv, x, y }: JsonWebKey): JsonWebKey => {
+    if (
+        kty === undefined ||
+        crv === undefined ||
+        x === undefined ||
+        y === undefined
+    ) {
+        throw new Error("Not an EC public key JWK");
+    }
+    return { kty, crv, x, y };
 };
 
-export const publicKeyFromJwkJson = (jwkJson: string) => {
-    const { kty, crv, x, y } = JSON.parse(jwkJson) as JsonWebKey;
-    return subtle().importKey("jwk", { kty, crv, x, y }, p384, true, []);
-};
+export const publicKeyToJwkJson = async (publicKey: CryptoKey) =>
+    JSON.stringify(publicJwk(await subtle().exportKey("jwk", publicKey)));
+
+export const publicKeyFromJwkJson = (jwkJson: string) =>
+    subtle().importKey(
+        "jwk",
+        publicJwk(JSON.parse(jwkJson) as JsonWebKey),
+        p384,
+        true,
+        [],
+    );
 
 export const publicKeyFromRawPoint = (point: Bytes) => {
     if (point.length != 1 + 2 * p384CoordinateLength || point[0] != 0x04) {
@@ -108,10 +142,14 @@ export const privateKeyFromJwk = (jwk: JsonWebKey) =>
     subtle().importKey("jwk", jwk, p384, true, ["deriveBits"]);
 
 /** The public half of a private key, from its JWK (x and y are in it). */
-export const publicKeyOf = async (privateKey: CryptoKey) => {
-    const { kty, crv, x, y } = await subtle().exportKey("jwk", privateKey);
-    return subtle().importKey("jwk", { kty, crv, x, y }, p384, true, []);
-};
+export const publicKeyOf = async (privateKey: CryptoKey) =>
+    subtle().importKey(
+        "jwk",
+        publicJwk(await subtle().exportKey("jwk", privateKey)),
+        p384,
+        true,
+        [],
+    );
 
 /**
  * The ECDH X coordinate. WebCrypto always returns the full 48 bytes; a client
@@ -178,7 +216,10 @@ export const zkSeal = async (data: Bytes, recipient: CryptoKey) => {
 };
 
 export const zkUnseal = async (sealed: Bytes, privateKey: CryptoKey) => {
-    if (readSealKeyId(sealed) != (await sealKeyId(await publicKeyOf(privateKey)))) {
+    if (
+        readSealKeyId(sealed) !=
+        (await sealKeyId(await publicKeyOf(privateKey)))
+    ) {
         throw new Error("Sealed to a different key");
     }
     const throwaway = await publicKeyFromRawPoint(
