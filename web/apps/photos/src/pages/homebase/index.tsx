@@ -8,6 +8,7 @@ import log from "ente-base/log";
 import {
     ensureEntePassword,
     getProfile,
+    type HomebaseDrive,
     type HomebaseProfile,
     openSavedHomebaseDrive,
     passwordFingerprint,
@@ -16,11 +17,12 @@ import {
 } from "ente-homebase";
 import { t } from "i18next";
 import { useRouter } from "next/router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     homebaseErrorMessage,
     homebaseFailureLabel,
     homebaseStore,
+    logInToEnte,
 } from "../../services/homebase";
 
 interface SignedIn {
@@ -40,6 +42,11 @@ const Page: React.FC = () => {
     const [error, setError] = useState<
         { message: string; signInAgain: boolean } | undefined
     >(undefined);
+    const [continuing, setContinuing] = useState(false);
+    // Kept in memory only, until Continue unlocks Ente's keys with it.
+    const opened = useRef<{ drive: HomebaseDrive; password: string }>(
+        undefined,
+    );
 
     useEffect(() => {
         // Mutated by the cleanup, so a late result isn't shown after unmount.
@@ -52,6 +59,7 @@ const Page: React.FC = () => {
                     return;
                 }
                 const { password, created } = await ensureEntePassword(drive);
+                opened.current = { drive, password };
                 const fingerprint = await passwordFingerprint(password);
                 const profile = await getProfile(drive.session.identity);
                 if (!effect.cancelled) {
@@ -76,6 +84,24 @@ const Page: React.FC = () => {
         return () => {
             effect.cancelled = true;
         };
+    }, [router]);
+
+    const continueToEnte = useCallback(async () => {
+        if (!opened.current) return;
+        setContinuing(true);
+        try {
+            await logInToEnte(opened.current.drive, opened.current.password);
+            opened.current = undefined;
+            await router.push("/gallery");
+        } catch (e) {
+            log.error(
+                `Homebase: Ente login failed: ${homebaseFailureLabel(e)}`,
+            );
+            setError({
+                message: t("homebase_ente_login_failed"),
+                signInAgain: false,
+            });
+        }
     }, [router]);
 
     const signOut = useCallback(async () => {
@@ -141,6 +167,14 @@ const Page: React.FC = () => {
             </Fingerprint>
             <Button
                 fullWidth
+                loading={continuing}
+                onClick={() => void continueToEnte()}
+            >
+                {t("homebase_continue")}
+            </Button>
+            <Gap />
+            <Button
+                fullWidth
                 variant="secondary"
                 onClick={() => void signOut()}
             >
@@ -192,3 +226,5 @@ const Explanation = styled("div")({
     },
     "& p": { margin: 0 },
 });
+
+const Gap = styled("div")({ height: "12px" });

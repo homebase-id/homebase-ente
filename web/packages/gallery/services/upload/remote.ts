@@ -6,7 +6,7 @@ import {
     type HTTPRequestRetrier,
     type PublicAlbumsCredentials,
 } from "ente-base/http";
-import { apiURL, uploaderOrigin } from "ente-base/origins";
+import { apiURL, isHomebaseMode, uploaderOrigin } from "ente-base/origins";
 import { RemoteEnteFile, type RemoteFileMetadata } from "ente-media/file";
 import type { RemoteMagicMetadata } from "ente-media/magic-metadata";
 import { nullToUndefined } from "ente-utils/transform";
@@ -155,11 +155,14 @@ export const putFile = async (
     retrier: HTTPRequestRetrier,
     options?: PutFileOptions,
 ) =>
-    retrier(() =>
+    retrier(async () =>
         fetch(fileUploadURL, {
             method: "PUT",
             headers: {
-                ...publicRequestHeaders(),
+                // Homebase: the upload URL is the proxy's, which needs the token.
+                ...((await isHomebaseMode())
+                    ? await authenticatedRequestHeaders()
+                    : publicRequestHeaders()),
                 ...(options?.contentMd5 && {
                     "Content-MD5": options.contentMd5,
                 }),

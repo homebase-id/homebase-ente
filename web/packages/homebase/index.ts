@@ -3,6 +3,7 @@ export * from "./constants";
 export * from "./context";
 export * from "./crypto";
 export * from "./drive";
+export * from "./ente";
 export * from "./password";
 export * from "./session";
 export * from "./store";

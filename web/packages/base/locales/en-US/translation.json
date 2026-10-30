@@ -1230,5 +1230,7 @@
     "homebase_explain_why_title": "Why",
     "homebase_explain_why": "So your Homebase sign-in is the only thing you need. You never type or remember an Ente password, and every device gets the same one, so they can all unlock the same photos.",
     "homebase_explain_secure_title": "Why it's secure",
-    "homebase_explain_secure": "The drive is zero-knowledge: the file is encrypted in this browser with a key that only apps you approved can open, so Homebase stores it but can't read it. The password isn't stored on this device, isn't sent to Ente's servers, and is never shown; below is only a short fingerprint of it, so you can check that each sign-in found the same one. This is a prototype: it hasn't been reviewed, and losing the file would mean losing access, so a backup (Ente's recovery key) comes later."
+    "homebase_explain_secure": "The drive is zero-knowledge: the file is encrypted in this browser with a key that only apps you approved can open, so Homebase stores it but can't read it. The password isn't stored on this device, isn't sent to Ente's servers, and is never shown; below is only a short fingerprint of it, so you can check that each sign-in found the same one. This is a prototype: it hasn't been reviewed, and losing the file would mean losing access, so a backup (Ente's recovery key) comes later.",
+    "homebase_continue": "Continue to Ente Photos",
+    "homebase_ente_login_failed": "Couldn't open Ente Photos with your Homebase. Is the proxy running?"
 }

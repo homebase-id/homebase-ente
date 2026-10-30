@@ -2,12 +2,41 @@
 // browser's credentials store, and a message for each way a sign-in fails.
 
 import {
+    replaceSavedLocalUser,
+    saveKeyAttributes,
+    saveOriginalKeyAttributes,
+} from "ente-accounts/services/accounts-db";
+import { decryptBox, deriveKey } from "ente-accounts/services/crypto";
+import { saveMasterKeyInSessionAndSafeStore } from "ente-accounts/services/prelogin-session";
+import {
+    generateAndSaveInteractiveKeyAttributes,
+    generateSignupKeys,
+    type KeyAttributes,
+    RemoteKeyAttributes,
+} from "ente-accounts/services/user";
+import { authenticatedRequestHeaders, ensureOk } from "ente-base/http";
+import { setKV } from "ente-base/kv";
+import { apiURL } from "ente-base/origins";
+import { saveAuthToken } from "ente-base/token";
+import {
     type CredentialsStore,
+    enteEmail,
+    enteUserID,
+    type HomebaseDrive,
     HomebaseHttpError,
     indexedDBCredentialsStore,
+    xAuthToken,
     YouAuthError,
 } from "ente-homebase";
 import { t } from "i18next";
+import { z } from "zod";
+
+/**
+ * The Ente → Homebase proxy (proxy/ in this repo) that stands in for Ente's
+ * server when signed in with Homebase.
+ */
+export const homebaseProxyOrigin =
+    process.env.NEXT_PUBLIC_ENTE_HOMEBASE_PROXY ?? "http://localhost:8095";
 
 let _store: CredentialsStore | undefined;
 
@@ -43,4 +72,101 @@ export const homebaseErrorMessage = (e: unknown) => {
         case "other":
             return t("generic_error");
     }
+};
+
+const SessionValidity = z.object({
+    hasSetKeys: z.boolean(),
+    keyAttributes: RemoteKeyAttributes.nullish(),
+});
+
+const fetchKeyAttributes = async () => {
+    const res = await fetch(await apiURL("/users/session-validity/v2"), {
+        headers: await authenticatedRequestHeaders(),
+    });
+    ensureOk(res);
+    const { hasSetKeys, keyAttributes } = SessionValidity.parse(
+        await res.json(),
+    );
+    return hasSetKeys && keyAttributes ? keyAttributes : undefined;
+};
+
+/** PUT /users/attributes; false if another device set them first (403). */
+const putKeyAttributes = async (keyAttributes: KeyAttributes) => {
+    const res = await fetch(await apiURL("/users/attributes"), {
+        method: "PUT",
+        headers: {
+            ...(await authenticatedRequestHeaders()),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ keyAttributes }),
+    });
+    if (res.status == 403) return false;
+    ensureOk(res);
+    return true;
+};
+
+const unlockMasterKey = async (
+    password: string,
+    keyAttributes: KeyAttributes,
+) =>
+    decryptBox(
+        {
+            encryptedData: keyAttributes.encryptedKey,
+            nonce: keyAttributes.keyDecryptionNonce,
+        },
+        await deriveKey(
+            password,
+            keyAttributes.kekSalt,
+            keyAttributes.opsLimit,
+            keyAttributes.memLimit,
+        ),
+    );
+
+/**
+ * Logs in to Ente Photos with a Homebase sign-in and its hidden Ente password:
+ * Ente's API goes to the proxy, and Ente's keys are set up (first time) or
+ * unlocked with the password, as Ente's own sign-up and login pages would.
+ * Afterwards the app is logged in as usual and can go to the gallery.
+ *
+ * Prototype: Ente keeps its auth token unencrypted in localStorage and
+ * IndexedDB, and here that token is the X-Auth-Token, which holds the drive
+ * key.
+ */
+export const logInToEnte = async (drive: HomebaseDrive, password: string) => {
+    const { identity } = drive.session;
+    const token = xAuthToken(drive.session);
+    await setKV("apiOrigin", homebaseProxyOrigin);
+    // Credentials only in headers, single-part uploads (ente-base isHomebaseMode).
+    await setKV("homebase", "1");
+    await saveAuthToken(token);
+    replaceSavedLocalUser({
+        id: await enteUserID(identity),
+        email: enteEmail(identity),
+        token,
+    });
+
+    let keyAttributes = await fetchKeyAttributes();
+    let masterKey: string;
+    if (keyAttributes) {
+        masterKey = await unlockMasterKey(password, keyAttributes);
+    } else {
+        const generated = await generateSignupKeys(password);
+        if (await putKeyAttributes(generated.keyAttributes)) {
+            ({ keyAttributes, masterKey } = generated);
+        } else {
+            // Another device set up Ente first: use its keys.
+            keyAttributes = await fetchKeyAttributes();
+            if (!keyAttributes) throw new Error("Key attributes went missing");
+            masterKey = await unlockMasterKey(password, keyAttributes);
+        }
+    }
+
+    saveOriginalKeyAttributes(keyAttributes);
+    saveKeyAttributes(keyAttributes);
+    await generateAndSaveInteractiveKeyAttributes(
+        password,
+        keyAttributes,
+        masterKey,
+    );
+    await saveMasterKeyInSessionAndSafeStore(masterKey);
 };

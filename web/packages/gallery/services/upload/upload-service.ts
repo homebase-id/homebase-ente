@@ -14,6 +14,7 @@ import {
     type PublicAlbumsCredentials,
 } from "ente-base/http";
 import log from "ente-base/log";
+import { isHomebaseMode } from "ente-base/origins";
 import { extractExif } from "ente-gallery/services/exif";
 import {
     determineVideoDuration,
@@ -1334,7 +1335,9 @@ const uploadToBucket = async (
     const encryptedData = file.encryptedData;
     if (
         !(encryptedData instanceof Uint8Array) &&
-        encryptedData.chunkCount >= multipartChunksPerPart
+        encryptedData.chunkCount >= multipartChunksPerPart &&
+        // Homebase's proxy takes each file in one PUT (it can't assemble parts).
+        !(await isHomebaseMode())
     ) {
         ({ objectKey: fileObjectKey, fileSize } =
             await uploadStreamUsingMultipart(
