@@ -33,12 +33,12 @@ export function PhotosAuthShell({
     return (
         <AuthPageShell
             brand={{
-                headline: t("photos_auth_headline"),
-                subtitle: t("photos_auth_subtitle"),
+                headline: t("homebase_auth_headline"),
+                subtitle: t("homebase_auth_subtitle"),
                 bullets: [
-                    t("photos_auth_free_storage"),
-                    t("photos_auth_no_ads_no_spying"),
-                    t("auth_independently_audited"),
+                    t("homebase_auth_your_storage"),
+                    t("homebase_auth_encrypted"),
+                    t("homebase_auth_one_sign_in"),
                 ],
             }}
             presentationConfig={photosAuthTheme}
