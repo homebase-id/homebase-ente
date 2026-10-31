@@ -23,6 +23,13 @@ export const apiURL = async (
 export const customAPIOrigin = async () =>
     (await getKVS("apiOrigin")) ?? buildEnvCustomAPIEndpoint ?? undefined;
 
+/**
+ * Whether the app is signed in with Homebase, talking to the Ente → Homebase
+ * proxy. Then credentials go only in headers, never in URLs (the token holds
+ * the Homebase drive key), and uploads are single-part.
+ */
+export const isHomebaseMode = async () => (await getKVS("homebase")) == "1";
+
 // This ignores the KV custom server and only reflects the build-time override.
 export const isCustomAPIOrigin = !!buildEnvCustomAPIEndpoint;
 

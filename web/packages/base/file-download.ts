@@ -6,7 +6,7 @@ import {
     publicRequestHeaders,
     type PublicAlbumsCredentials,
 } from "./http";
-import { apiURL, customAPIOrigin } from "./origins";
+import { apiURL, customAPIOrigin, isHomebaseMode } from "./origins";
 import {
     authenticatedPublicMemoryRequestHeaders,
     type PublicMemoryCredentials,
@@ -45,6 +45,13 @@ const legacyFilePath = (kind: FileKind) =>
     kind == "file" ? "download" : "preview";
 
 export const fetchFile = async (fileID: number, kind: FileKind) => {
+    // Homebase: the proxy serves the bytes itself, authenticated by header.
+    if (await isHomebaseMode()) {
+        return fetch(await apiURL(`/files/${legacyFilePath(kind)}/${fileID}`), {
+            headers: await authenticatedRequestHeaders(),
+        });
+    }
+
     const response = await tryFetchFileUsingV3(
         `/files/${filePath(kind)}/v3/${fileID}`,
         await authenticatedRequestHeaders(),

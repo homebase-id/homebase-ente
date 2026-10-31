@@ -306,6 +306,40 @@ export const postEnteFile = async (
     return RemoteEnteFile.parse(await res.json());
 };
 
+/**
+ * Homebase mode: upload a photo in one request to the Ente → Homebase proxy,
+ * which stores it as one Homebase file (the original as the payload, the
+ * thumbnail as its thumbnail, the record as content) and answers like
+ * {@link postEnteFile}. Instead of Ente's upload URLs, PUTs and POST /files.
+ *
+ * The parts go in the order the proxy reads them: the request, the thumbnail,
+ * then the original, which it streams through.
+ */
+export const postHomebaseEnteFile = async (
+    request: Omit<PostEnteFileRequest, "file" | "thumbnail"> & {
+        file: Omit<UploadedFileObjectAttributes, "objectKey">;
+        thumbnail: Omit<UploadedFileObjectAttributes, "objectKey">;
+    },
+    thumbnailData: Uint8Array<ArrayBuffer>,
+    fileData: Uint8Array<ArrayBuffer>,
+): Promise<RemoteEnteFile> => {
+    const form = new FormData();
+    form.append(
+        "request",
+        new Blob([JSON.stringify(request)], { type: "application/json" }),
+        "request",
+    );
+    form.append("thumbnail", new Blob([thumbnailData]), "thumbnail");
+    form.append("file", new Blob([fileData]), "file");
+    const res = await fetch(await apiURL("/homebase/files"), {
+        method: "POST",
+        headers: await authenticatedRequestHeaders(),
+        body: form,
+    });
+    ensureOk(res);
+    return RemoteEnteFile.parse(await res.json());
+};
+
 export const postPublicAlbumsEnteFile = async (
     postFileRequest: PostEnteFileRequest,
 

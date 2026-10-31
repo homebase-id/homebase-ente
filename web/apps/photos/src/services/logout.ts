@@ -11,12 +11,14 @@ import { downloadManager } from "ente-gallery/services/download";
 import { clearFilesDB } from "ente-gallery/services/files-db";
 import { resetUploadState } from "ente-gallery/services/upload";
 import { resetVideoState } from "ente-gallery/services/video";
+import { signOutOfHomebase } from "ente-homebase";
 import { logoutAppLock } from "ente-new/photos/services/app-lock";
 import { logoutML, terminateMLWorker } from "ente-new/photos/services/ml";
 import { logoutSearch } from "ente-new/photos/services/search";
 import { logoutSettings } from "ente-new/photos/services/settings";
 import { logoutUserDetails } from "ente-new/photos/services/user-details";
 import { clearAuthenticatedSession } from "./authenticated-session";
+import { homebaseStore } from "./homebase";
 import { uploadManager } from "./upload-manager";
 
 // Individual cleanup failures must not abort logout.
@@ -120,6 +122,15 @@ export const photosLogout = async () => {
         logoutFileViewerDataSource();
     } catch (e) {
         ignoreError("File viewer", e);
+    }
+
+    // Homebase: forget the sign-in too, else the login page goes straight
+    // back to it. (accountLogout already cleared the proxy origin and the
+    // Homebase mode flag from KV.)
+    try {
+        await signOutOfHomebase(homebaseStore());
+    } catch (e) {
+        ignoreError("Homebase", e);
     }
 
     // Desktop

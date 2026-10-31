@@ -14,6 +14,7 @@ import {
     type PublicAlbumsCredentials,
 } from "ente-base/http";
 import log from "ente-base/log";
+import { isHomebaseMode } from "ente-base/origins";
 import { extractExif } from "ente-gallery/services/exif";
 import {
     determineVideoDuration,
@@ -63,6 +64,7 @@ import {
     fetchUploadURLs,
     fetchUploadURLWithMetadata,
     postEnteFile,
+    postHomebaseEnteFile,
     postPublicAlbumsEnteFile,
     putFile,
     putFilePart,
@@ -591,24 +593,28 @@ export const upload = async (
 
         abortIfCancelled();
 
-        const backupedFile = await uploadToBucket(
-            encryptedFilePieces,
-            uploadContext,
-        );
-
-        abortIfCancelled();
-
-        const newFileRequest = {
-            collectionID: collection.id,
-            encryptedKey: encryptedFileKey.encryptedData,
-            keyDecryptionNonce: encryptedFileKey.nonce,
-            ...backupedFile,
-        };
-
-        const uploadedFile = await createRemoteFile(
-            newFileRequest,
-            uploadContext,
-        );
+        const uploadedFile = (await isHomebaseMode())
+            ? await uploadToHomebase(
+                  encryptedFilePieces,
+                  {
+                      collectionID: collection.id,
+                      encryptedKey: encryptedFileKey.encryptedData,
+                      keyDecryptionNonce: encryptedFileKey.nonce,
+                  },
+                  uploadContext,
+              )
+            : await createRemoteFile(
+                  {
+                      collectionID: collection.id,
+                      encryptedKey: encryptedFileKey.encryptedData,
+                      keyDecryptionNonce: encryptedFileKey.nonce,
+                      ...(await uploadToBucket(
+                          encryptedFilePieces,
+                          uploadContext,
+                      )),
+                  },
+                  uploadContext,
+              );
 
         return {
             type: metadata.hasStaticThumbnail
@@ -1416,6 +1422,51 @@ const uploadToBucket = async (
         metadata,
         pubMagicMetadata,
     };
+};
+
+/**
+ * Homebase mode: the file, its thumbnail and its record in one request to the
+ * proxy ({@link postHomebaseEnteFile}), which keeps them as one Homebase file.
+ * Not retried: each attempt would add a photo.
+ */
+const uploadToHomebase = async (
+    {
+        localID,
+        file,
+        thumbnail,
+        metadata,
+        pubMagicMetadata,
+    }: EncryptedFilePieces,
+    key: Pick<
+        PostEnteFileRequest,
+        "collectionID" | "encryptedKey" | "keyDecryptionNonce"
+    >,
+    { abortIfCancelled, updateUploadProgress }: UploadContext,
+) => {
+    const data =
+        file.encryptedData instanceof Uint8Array
+            ? file.encryptedData
+            : await readEntireStream(file.encryptedData.stream);
+    abortIfCancelled();
+    const uploadedFile = await postHomebaseEnteFile(
+        {
+            ...key,
+            file: {
+                decryptionHeader: file.decryptionHeader,
+                size: data.length,
+            },
+            thumbnail: {
+                decryptionHeader: thumbnail.decryptionHeader,
+                size: thumbnail.encryptedData.length,
+            },
+            metadata,
+            pubMagicMetadata,
+        },
+        thumbnail.encryptedData,
+        data,
+    );
+    updateUploadProgress(localID, 100);
+    return uploadedFile;
 };
 
 const createAbortableRetryEnsuringHTTPOk =
