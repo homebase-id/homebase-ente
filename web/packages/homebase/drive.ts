@@ -10,7 +10,6 @@
 
 import {
     type Bytes,
-    concat,
     fromBase64,
     fromUtf8,
     randomBytes,
@@ -25,23 +24,17 @@ import {
     isEnvelope,
 } from "./context";
 import { aesCbcDecrypt, aesCbcEncrypt } from "./crypto";
+import {
+    type EncryptedKeyHeader,
+    lockFileKey,
+    newFileKey,
+    openFileKey,
+} from "./records";
 
 /** A signed-in app's access to one of its zero-knowledge drives. */
 export interface DriveSession extends AppCredentials {
     driveAlias: string;
     driveKey: Bytes;
-}
-
-interface FileKey {
-    aesKey: Bytes;
-    iv: Bytes;
-}
-
-interface EncryptedKeyHeader {
-    encryptionVersion: number;
-    type: string | number;
-    iv: string;
-    encryptedAesKey: string;
 }
 
 export interface FileHeader {
@@ -92,41 +85,6 @@ export const toGuid = (value: string) => {
     const hex = value.replaceAll("-", "").toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(hex)) throw new Error("Not a GUID");
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-};
-
-/** A zkDrive key header: AES-CBC(DrvK, file IV, IV ‖ AesKey), 48 bytes. */
-const lockFileKey = async (
-    fileKey: FileKey,
-    driveKey: Bytes,
-): Promise<EncryptedKeyHeader> => ({
-    encryptionVersion: 1,
-    type: "zkDrive",
-    iv: toBase64(fileKey.iv),
-    encryptedAesKey: toBase64(
-        await aesCbcEncrypt(
-            driveKey,
-            fileKey.iv,
-            concat(fileKey.iv, fileKey.aesKey),
-        ),
-    ),
-});
-
-const openFileKey = async (
-    header: EncryptedKeyHeader,
-    driveKey: Bytes,
-): Promise<FileKey> => {
-    if (header.type != "zkDrive" && header.type != 13) {
-        throw new Error("Not a zkDrive key header");
-    }
-    const combined = await aesCbcDecrypt(
-        driveKey,
-        fromBase64(header.iv),
-        fromBase64(header.encryptedAesKey),
-    );
-    if (combined.length != 32) {
-        throw new Error("A zkDrive key header holds 32 bytes");
-    }
-    return { iv: combined.slice(0, 16), aesKey: combined.slice(16) };
 };
 
 export class HomebaseDrive {
@@ -188,7 +146,7 @@ export class HomebaseDrive {
      * with the same uniqueId exists; it never overwrites one.
      */
     async createFile(file: NewFile): Promise<{ fileId: string }> {
-        const fileKey = { aesKey: randomBytes(16), iv: randomBytes(16) };
+        const fileKey = newFileKey();
         const transferIv = randomBytes(16);
         const instructions = {
             transferIv: toBase64(transferIv),

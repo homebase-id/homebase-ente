@@ -4,6 +4,7 @@ import {
     encryptBox,
     generateBlobOrStreamKey,
 } from "ente-base/crypto";
+import { isHomebaseMode } from "ente-base/origins";
 import { nullishToEmpty, nullToUndefined } from "ente-utils/transform";
 import { z } from "zod";
 import { gunzip, gzip } from "../../utils/gzip";
@@ -75,6 +76,11 @@ export const savedCGroups = (): Promise<CGroup[]> =>
     );
 
 export const pullUserEntities = async (type: EntityType, masterKey: string) => {
+    // Homebase mode: people and places aren't kept on Homebase yet, so there's
+    // nothing to pull, and no Ente entity key (locked with the master key) to
+    // make. When they are, each will be sealed the Homebase way instead.
+    if (await isHomebaseMode()) return;
+
     const entityKey = await getOrCreateEntityKey(type, masterKey);
 
     let sinceTime = (await savedLatestUpdatedAt(type)) ?? 0;

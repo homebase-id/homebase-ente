@@ -4,21 +4,22 @@
 // same way by the proxy (EnteIds.cs; see its CONTRACT.md).
 
 import { toBase64, toBase64Url, utf8 } from "./bytes";
+import type { AppCredentials } from "./context";
 import { sha256 } from "./crypto";
-import type { DriveSession } from "./drive";
 
 /**
- * The X-Auth-Token for the proxy: base64url of {"v":1,"identity","token","ss","dk"}.
- * It holds the drive key, so it's a secret: never in a URL or a log.
+ * The X-Auth-Token for the proxy: base64url of {"v":2,"identity","token","ss"}.
+ * No drive key: this app seals and opens everything on the drive itself, so
+ * the proxy never gets it. Still a secret (it signs in to the identity):
+ * never in a URL or a log.
  */
-export const xAuthToken = (session: DriveSession) =>
+export const xAuthToken = (session: AppCredentials) =>
     toBase64Url(
         JSON.stringify({
-            v: 1,
+            v: 2,
             identity: session.identity,
             token: toBase64(session.clientAuthToken),
             ss: toBase64(session.sharedSecret),
-            dk: toBase64(session.driveKey),
         }),
     );
 

@@ -9,12 +9,11 @@ import { namedError } from "ente-base/error";
 import { fetchHomebasePhoto } from "ente-base/file-download";
 import { ensureOk } from "ente-base/http";
 import log from "ente-base/log";
-import { ensureAuthToken } from "ente-base/token";
 import {
-    decryptPhotoBytes,
-    driveKeyOf,
+    decryptPayload,
+    fileKeyFromString,
     isHomebasePhoto,
-    photoKey,
+    photoPayloadIv,
 } from "ente-homebase";
 import type { EnteFile } from "ente-media/file";
 import { fileFileName } from "ente-media/file-metadata";
@@ -577,7 +576,8 @@ const createRenderableSourceURLs = async (
 
 /**
  * Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts),
- * decrypted here with its key. Its bytes have no Ente encryption.
+ * decrypted here with the photo's own key (from its sealed record) and the
+ * payload's IV, which its thumbnails share. Its bytes have no Ente encryption.
  */
 const downloadHomebasePhoto = async (
     file: EnteFile,
@@ -585,6 +585,14 @@ const downloadHomebasePhoto = async (
 ) => {
     const res = await fetchHomebasePhoto(file.id, part);
     ensureOk(res);
-    const key = await photoKey(driveKeyOf(await ensureAuthToken()), file.id);
-    return decryptPhotoBytes(key, new Uint8Array(await res.arrayBuffer()));
+    const { aesKey } = fileKeyFromString(file.key);
+    const header =
+        part == "thumbnail"
+            ? file.thumbnail.decryptionHeader
+            : file.file.decryptionHeader;
+    return decryptPayload(
+        aesKey,
+        photoPayloadIv(header),
+        new Uint8Array(await res.arrayBuffer()),
+    );
 };

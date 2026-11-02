@@ -1,16 +1,38 @@
 # Sign in with Homebase (Ente Photos web): status
 
-## Update 2026-11-02: photos are encrypted the Homebase way
+## Update 2026-11-02: zero knowledge, sealed the chat-kmp way
 
-In Homebase mode a photo's media gets **one** layer of encryption, Homebase's, applied here
-in the browser, as every Homebase client does; Ente's encryption stays only on its record
-of the photo. `photo.ts`: the photo's ID, its key (derived from the drive key, the same as the
-proxy's), encrypting and decrypting. `thumbnails.ts`: chat-kmp's WebP thumbnails (320, 640,
-1080, 1600 px) and 20 px inline preview. The upload (`upload-service.ts` `uploadToHomebase`)
-and the reads (`download-core.ts` `downloadHomebasePhoto`) use them; the proxy stores and
-returns the bytes as they are. Checked against frodo: the stored original decrypts to the
-uploaded file byte for byte, and other Homebase apps would see a normal photo with
-thumbnails.
+In Homebase mode, everything Ente keeps on its drive is **sealed here in the browser**, the
+way chat-kmp (the reference Homebase client) does it. There's no Ente encryption on it, and
+the proxy holds no key that opens it:
+
+- `records.ts`: each file gets a random key (AES-128 key and IV), locked with the drive key in
+  a `zkDrive` key header. Its JSON is encrypted with that key. The proxy gets
+  `{"keyHeader", "content"}` and returns it as is (as `homebase` in Ente's responses).
+- **Albums** (`ente-new` `collection.ts` `createHomebaseCollection`, `ente-media`
+  `collection.ts` `openHomebaseCollection`): the type, name and settings, sealed.
+- **Photos** (`upload-service.ts` `uploadToHomebase`, `ente-media` `file.ts`
+  `openHomebaseFile`, `download-core.ts` `downloadHomebasePhoto`): the details (Ente's
+  metadata and magic metadata, as plain JSON) are sealed with the photo's key. The original
+  and its `thumbnails.ts` thumbnails (320/640/1080/1600 px WebP, and a 20 px inline preview)
+  are encrypted with that key and the payload's own random IV, which Ente's record carries as
+  `homebase-v2:<IV>` in the file and thumbnail `decryptionHeader`.
+- **Key attributes** (`apps/photos` `homebase.ts`): sealed. Inside is still Ente's master
+  key, locked with the hidden password, because Ente's session needs one. In Homebase mode it
+  protects nothing that's stored.
+- **The drive key stays in the browser** (`session.ts` `homebaseDriveKey`, opened from the
+  saved sign-in). The X-Auth-Token is now `{"v":2,"identity","token","ss"}`.
+- **People and places** aren't pulled in Homebase mode: they aren't kept on Homebase yet, and
+  Ente's entity key isn't needed.
+
+Checked against frodo, after deleting the old test data (Todd approved):
+
+- sign-in, an album and an upload;
+- a reload;
+- a fresh browser that opens the sealed key attributes and shows and opens the photo.
+
+Read straight from Odin, everything opens with the drive key, and the original's SHA-256
+matches the source (the proxy repo's STATUS.md, "Milestones").
 
 ## Update 2026-10-30: into the gallery, with uploads
 

@@ -11,23 +11,27 @@ describe("ente", () => {
         expect(Number.isSafeInteger(await enteUserID("x.example"))).toBe(true);
     });
 
-    test("the X-Auth-Token carries the drive session, base64url", () => {
+    test("the X-Auth-Token carries the sign-in but never the drive key", () => {
         const token = xAuthToken({
             identity: "frodo.example.test",
             clientAuthToken: new Uint8Array(33).fill(1),
             sharedSecret: new Uint8Array(16).fill(2),
-            driveAlias: "0ada68d639fd7c0c7f35e46d80665c0c",
-            driveKey: new Uint8Array(16).fill(3),
         });
         expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
         const decoded = JSON.parse(fromUtf8(fromBase64(token))) as Record<
             string,
             unknown
         >;
-        expect(decoded).toMatchObject({ v: 1, identity: "frodo.example.test" });
-        expect(fromBase64(decoded.dk as string)).toEqual(
-            new Uint8Array(16).fill(3),
+        expect(decoded).toMatchObject({ v: 2, identity: "frodo.example.test" });
+        expect(fromBase64(decoded.ss as string)).toEqual(
+            new Uint8Array(16).fill(2),
         );
+        expect(Object.keys(decoded).sort()).toEqual([
+            "identity",
+            "ss",
+            "token",
+            "v",
+        ]);
     });
 
     test("the email is a placeholder under .invalid", () => {

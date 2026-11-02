@@ -3,13 +3,15 @@ import { blobCache } from "ente-base/blob-cache";
 import { boxSeal, encryptBox, generateKey } from "ente-base/crypto";
 import { haveWindow } from "ente-base/env";
 import { authenticatedRequestHeaders, ensureOk } from "ente-base/http";
-import { apiURL } from "ente-base/origins";
+import { apiURL, isHomebaseMode } from "ente-base/origins";
 import { groupFilesByCollectionID } from "ente-gallery/utils/file";
+import { homebaseDriveKey, sealRecord } from "ente-homebase";
 import {
     CollectionSubType,
     decryptRemoteCollection,
     findUserUncategorizedCollection,
     maxAlbumDescriptionLength,
+    openHomebaseCollection,
     RemoteCollection,
     RemotePublicURL,
     type Collection,
@@ -19,6 +21,7 @@ import {
     type CollectionPublicMagicMetadataData,
     type CollectionShareeMagicMetadataData,
     type CollectionType,
+    type HomebaseCollectionDetails,
     type PublicURL,
 } from "ente-media/collection";
 import type { CollectionSortBy } from "ente-media/collection-sort";
@@ -91,6 +94,10 @@ const createCollection = async (
     type: CollectionType,
     magicMetadataData?: CollectionPrivateMagicMetadataData,
 ): Promise<Collection> => {
+    if (await isHomebaseMode()) {
+        return createHomebaseCollection(name, type, magicMetadataData);
+    }
+
     const collectionKey = await generateKey();
     const { encryptedData: encryptedKey, nonce: keyDecryptionNonce } =
         await encryptBox(collectionKey, await ensureMasterKeyFromSession());
@@ -115,8 +122,32 @@ const createCollection = async (
     return decryptRemoteKeyAndCollection(remoteCollection);
 };
 
+/**
+ * In Homebase mode an album has no Ente keys or encryption: its details are
+ * sealed in this browser, the Homebase way, and the proxy stores them as sent.
+ */
+const createHomebaseCollection = async (
+    name: string,
+    type: CollectionType,
+    magicMetadataData?: CollectionPrivateMagicMetadataData,
+): Promise<Collection> => {
+    const details: HomebaseCollectionDetails = {
+        type,
+        name,
+        ...(magicMetadataData && {
+            magicMetadata: createMagicMetadata(magicMetadataData),
+        }),
+    };
+    const { sealed } = await sealRecord(details, await homebaseDriveKey());
+    return decryptRemoteKeyAndCollection(
+        await postCollections({ homebase: sealed }),
+    );
+};
+
 const decryptRemoteKeyAndCollection = async (collection: RemoteCollection) => {
     try {
+        if (collection.homebase)
+            return await openHomebaseCollection(collection);
         return await decryptRemoteCollection(
             collection,
             await decryptCollectionKey(collection),

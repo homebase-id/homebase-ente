@@ -36,8 +36,8 @@ export const passwordFile = {
 
 /**
  * The file on {@link enteDrive} that holds Ente's key attributes (the master
- * key, locked with the Ente password). Written and read by the proxy for
- * PUT /users/attributes and GET /users/session-validity/v2.
+ * key, locked with the Ente password), sealed by this app (records.ts). The
+ * proxy keeps it for PUT /users/attributes and GET /users/session-validity/v2.
  */
 export const keyAttributesFile = {
     uniqueId: "d269c173-71a3-4fe4-8ee4-8d4da5c929e7",
@@ -45,18 +45,15 @@ export const keyAttributesFile = {
 } as const;
 
 /**
- * A photo on {@link enteDrive}, kept the Homebase way: one file whose payload
- * is the original (plain media, encrypted in Homebase's format by this app,
- * not Ente's), with Homebase thumbnails. Ente's record of it (its metadata,
- * still Ente-encrypted) is the file's content. See photo.ts.
+ * A photo on {@link enteDrive}, kept the Homebase way (photo.ts): one file
+ * with its own key, whose content is its sealed details and whose payload is
+ * the original, with Homebase thumbnails. No Ente encryption on any of it.
  */
 export const photo = {
     fileType: 7210,
     payloadKey: "original",
-    /** Put in the record's file and thumbnail decryptionHeader: no Ente encryption on these bytes. */
-    format: "homebase-v1",
-    /** HKDF info for a photo's key (photo.ts photoKey). */
-    keyInfo: "ente-homebase-object",
+    /** Ente's decryptionHeader on a photo kept this way (with ":" and the payload IV on the file and thumbnail). */
+    format: "homebase-v2",
 } as const;
 
 /** Where YouAuth sends the browser back to, relative to the app's origin. */
