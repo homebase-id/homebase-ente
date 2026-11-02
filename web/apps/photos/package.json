@@ -17,6 +17,7 @@
         "ente-base": "*",
         "ente-contacts": "*",
         "ente-gallery": "*",
+        "ente-homebase": "*",
         "ente-media": "*",
         "ente-new": "*",
         "ente-photos-wasm": "*",

@@ -1,3 +1,4 @@
+import { useAuthPageConfig } from "ente-accounts/components/auth/AuthPageProvider";
 import { LoginForm } from "ente-accounts/components/auth/LoginForm";
 import {
     replaceSavedLocalUser,
@@ -40,6 +41,7 @@ export const LoginContents: React.FC<LoginContentsProps> = ({
     host,
 }) => {
     const router = useRouter();
+    const { LoginExtra } = useAuthPageConfig();
     const [isJoinAlbumContext, setIsJoinAlbumContext] = useState(false);
     const isEnsu = appName === "ensu";
 
@@ -102,17 +104,20 @@ export const LoginContents: React.FC<LoginContentsProps> = ({
     }
 
     return (
-        <LoginForm
-            email={formik.values.email}
-            emailError={formik.errors.email}
-            host={host}
-            isSubmitting={formik.isSubmitting}
-            isJoinAlbumContext={isJoinAlbumContext}
-            isEnsu={isEnsu}
-            onEmailChange={formik.handleChange}
-            onSubmit={formik.handleSubmit}
-            onSignUp={onSignUp}
-            onCancel={handleCancel}
-        />
+        <>
+            <LoginForm
+                email={formik.values.email}
+                emailError={formik.errors.email}
+                host={host}
+                isSubmitting={formik.isSubmitting}
+                isJoinAlbumContext={isJoinAlbumContext}
+                isEnsu={isEnsu}
+                onEmailChange={formik.handleChange}
+                onSubmit={formik.handleSubmit}
+                onSignUp={onSignUp}
+                onCancel={handleCancel}
+            />
+            {LoginExtra && <LoginExtra />}
+        </>
     );
 };
