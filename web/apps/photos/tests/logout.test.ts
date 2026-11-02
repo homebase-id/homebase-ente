@@ -1,4 +1,5 @@
 import { logoutContacts } from "ente-contacts";
+import { signOutOfHomebase } from "ente-homebase";
 import { afterEach, expect, test, vi } from "vitest";
 import { openAuthenticatedSession } from "../src/services/authenticated-session";
 import { photosLogout } from "../src/services/logout";
@@ -77,6 +78,8 @@ vi.mock("ente-new/photos/services/settings", () => ({
 vi.mock("ente-new/photos/services/user-details", () => ({
     logoutUserDetails: vi.fn(),
 }));
+vi.mock("ente-homebase", () => ({ signOutOfHomebase: vi.fn() }));
+vi.mock("../src/services/homebase", () => ({ homebaseStore: vi.fn() }));
 vi.mock("../src/services/upload-manager", () => ({
     uploadManager: { logout: vi.fn() },
 }));
@@ -104,4 +107,5 @@ test("logout rejects pending sessions while worker shutdown is pending", async (
         await loggingOut;
     }
     expect(logoutContacts).toHaveBeenCalledOnce();
+    expect(signOutOfHomebase).toHaveBeenCalledOnce();
 });
