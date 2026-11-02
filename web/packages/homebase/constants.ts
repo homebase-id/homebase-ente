@@ -44,5 +44,20 @@ export const keyAttributesFile = {
     fileType: 7201,
 } as const;
 
+/**
+ * A photo on {@link enteDrive}, kept the Homebase way: one file whose payload
+ * is the original (plain media, encrypted in Homebase's format by this app,
+ * not Ente's), with Homebase thumbnails. Ente's record of it (its metadata,
+ * still Ente-encrypted) is the file's content. See photo.ts.
+ */
+export const photo = {
+    fileType: 7210,
+    payloadKey: "original",
+    /** Put in the record's file and thumbnail decryptionHeader: no Ente encryption on these bytes. */
+    format: "homebase-v1",
+    /** HKDF info for a photo's key (photo.ts photoKey). */
+    keyInfo: "ente-homebase-object",
+} as const;
+
 /** Where YouAuth sends the browser back to, relative to the app's origin. */
 export const homebaseCallbackPath = "/homebase/callback";

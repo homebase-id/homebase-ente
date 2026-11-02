@@ -5,6 +5,8 @@ export * from "./crypto";
 export * from "./drive";
 export * from "./ente";
 export * from "./password";
+export * from "./photo";
 export * from "./session";
 export * from "./store";
+export * from "./thumbnails";
 export * from "./youauth";

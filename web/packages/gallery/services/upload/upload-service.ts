@@ -15,6 +15,7 @@ import {
 } from "ente-base/http";
 import log from "ente-base/log";
 import { isHomebaseMode } from "ente-base/origins";
+import { ensureAuthToken } from "ente-base/token";
 import { extractExif } from "ente-gallery/services/exif";
 import {
     determineVideoDuration,
@@ -25,6 +26,14 @@ import {
     isFileTypeNotSupportedError,
 } from "ente-gallery/utils/detect-type";
 import { readStream } from "ente-gallery/utils/native-stream";
+import {
+    driveKeyOf,
+    encryptPhotoBytes,
+    homebaseThumbnails,
+    newPhotoID,
+    photo,
+    photoKey,
+} from "ente-homebase";
 import { decryptRemoteFile, type EnteFile } from "ente-media/file";
 import {
     fileFileName,
@@ -585,6 +594,23 @@ export const upload = async (
             },
         };
 
+        // Homebase: the media gets Homebase's encryption instead of Ente's.
+        if (await isHomebaseMode()) {
+            const uploadedFile = await uploadToHomebase(
+                fileWithMetadata,
+                fileTypeInfo,
+                collection,
+                worker,
+                uploadContext,
+            );
+            return {
+                type: metadata.hasStaticThumbnail
+                    ? "uploadedWithStaticThumbnail"
+                    : "uploaded",
+                file: await decryptRemoteFile(uploadedFile, collection.key),
+            };
+        }
+
         const { encryptedFilePieces, encryptedFileKey } = await encryptFile(
             fileWithMetadata,
             collection.key,
@@ -593,28 +619,24 @@ export const upload = async (
 
         abortIfCancelled();
 
-        const uploadedFile = (await isHomebaseMode())
-            ? await uploadToHomebase(
-                  encryptedFilePieces,
-                  {
-                      collectionID: collection.id,
-                      encryptedKey: encryptedFileKey.encryptedData,
-                      keyDecryptionNonce: encryptedFileKey.nonce,
-                  },
-                  uploadContext,
-              )
-            : await createRemoteFile(
-                  {
-                      collectionID: collection.id,
-                      encryptedKey: encryptedFileKey.encryptedData,
-                      keyDecryptionNonce: encryptedFileKey.nonce,
-                      ...(await uploadToBucket(
-                          encryptedFilePieces,
-                          uploadContext,
-                      )),
-                  },
-                  uploadContext,
-              );
+        const backupedFile = await uploadToBucket(
+            encryptedFilePieces,
+            uploadContext,
+        );
+
+        abortIfCancelled();
+
+        const newFileRequest = {
+            collectionID: collection.id,
+            encryptedKey: encryptedFileKey.encryptedData,
+            keyDecryptionNonce: encryptedFileKey.nonce,
+            ...backupedFile,
+        };
+
+        const uploadedFile = await createRemoteFile(
+            newFileRequest,
+            uploadContext,
+        );
 
         return {
             type: metadata.hasStaticThumbnail
@@ -1209,6 +1231,95 @@ const encryptFile = async (
     };
 };
 
+/**
+ * Homebase mode: upload a photo the Homebase way (ente-homebase photo.ts). The
+ * original and its Homebase thumbnails are encrypted here in Homebase's format,
+ * with the photo's key, and not with Ente's: the proxy stores them as sent and
+ * never sees them in the clear. Ente's encryption stays on its record of the
+ * photo (the metadata, and the key that opens it), as Ente's sync needs.
+ *
+ * Not retried: each attempt would add a photo.
+ */
+const uploadToHomebase = async (
+    {
+        localID,
+        fileStreamOrData,
+        thumbnail,
+        metadata,
+        publicMagicMetadata,
+    }: FileWithMetadata,
+    { mimeType }: FileTypeInfo,
+    collection: { id: number; key: string },
+    worker: CryptoWorker,
+    { abortIfCancelled, updateUploadProgress }: UploadContext,
+) => {
+    const fileKey = await worker.generateBlobOrStreamKey();
+    const encryptedMetadata = await worker.encryptMetadataJSON(
+        metadata,
+        fileKey,
+    );
+    const pubMagicMetadata = createMagicMetadata(publicMagicMetadata);
+    const encryptedPubMagicMetadata = pubMagicMetadata.count
+        ? await encryptMagicMetadata(pubMagicMetadata, fileKey)
+        : undefined;
+    const encryptedFileKey = await worker.encryptBox(fileKey, collection.key);
+
+    const data =
+        fileStreamOrData instanceof Uint8Array
+            ? fileStreamOrData
+            : await readEntireStream(fileStreamOrData.stream);
+    abortIfCancelled();
+
+    // From the image itself where the browser can decode it; else (videos,
+    // live photos, HEIC) from the thumbnail Ente made.
+    const thumbnails =
+        (metadata.fileType == FileType.image &&
+            (await homebaseThumbnails(new Blob([data])))) ||
+        (await homebaseThumbnails(new Blob([thumbnail])));
+
+    const fileID = newPhotoID();
+    const key = await photoKey(driveKeyOf(await ensureAuthToken()), fileID);
+    const encryptedThumbnails = await Promise.all(
+        (thumbnails?.thumbnails ?? []).map((t) =>
+            encryptPhotoBytes(key, t.bytes),
+        ),
+    );
+    const encryptedData = await encryptPhotoBytes(key, data);
+    abortIfCancelled();
+
+    const uploadedFile = await postHomebaseEnteFile(
+        {
+            fileID,
+            collectionID: collection.id,
+            encryptedKey: encryptedFileKey.encryptedData,
+            keyDecryptionNonce: encryptedFileKey.nonce,
+            contentType:
+                metadata.fileType == FileType.livePhoto
+                    ? "application/zip"
+                    : (mimeType ?? "application/octet-stream"),
+            file: { decryptionHeader: photo.format, size: data.length },
+            thumbnail: {
+                decryptionHeader: photo.format,
+                size: encryptedThumbnails.reduce((n, t) => n + t.length, 0),
+            },
+            metadata: encryptedMetadata,
+            pubMagicMetadata: encryptedPubMagicMetadata,
+            previewThumbnail: thumbnails?.previewThumbnail,
+            thumbnails: (thumbnails?.thumbnails ?? []).map(
+                ({ pixelWidth, pixelHeight, contentType }) => ({
+                    pixelWidth,
+                    pixelHeight,
+                    contentType,
+                }),
+            ),
+        },
+        encryptedThumbnails,
+        encryptedData,
+    );
+    updateUploadProgress(localID, 100);
+    return uploadedFile;
+};
+
 const encryptBytesWithOptionalVerification = async (
     data: Uint8Array,
     fileKey: BytesOrB64,
@@ -1422,51 +1533,6 @@ const uploadToBucket = async (
         metadata,
         pubMagicMetadata,
     };
-};
-
-/**
- * Homebase mode: the file, its thumbnail and its record in one request to the
- * proxy ({@link postHomebaseEnteFile}), which keeps them as one Homebase file.
- * Not retried: each attempt would add a photo.
- */
-const uploadToHomebase = async (
-    {
-        localID,
-        file,
-        thumbnail,
-        metadata,
-        pubMagicMetadata,
-    }: EncryptedFilePieces,
-    key: Pick<
-        PostEnteFileRequest,
-        "collectionID" | "encryptedKey" | "keyDecryptionNonce"
-    >,
-    { abortIfCancelled, updateUploadProgress }: UploadContext,
-) => {
-    const data =
-        file.encryptedData instanceof Uint8Array
-            ? file.encryptedData
-            : await readEntireStream(file.encryptedData.stream);
-    abortIfCancelled();
-    const uploadedFile = await postHomebaseEnteFile(
-        {
-            ...key,
-            file: {
-                decryptionHeader: file.decryptionHeader,
-                size: data.length,
-            },
-            thumbnail: {
-                decryptionHeader: thumbnail.decryptionHeader,
-                size: thumbnail.encryptedData.length,
-            },
-            metadata,
-            pubMagicMetadata,
-        },
-        thumbnail.encryptedData,
-        data,
-    );
-    updateUploadProgress(localID, 100);
-    return uploadedFile;
 };
 
 const createAbortableRetryEnsuringHTTPOk =

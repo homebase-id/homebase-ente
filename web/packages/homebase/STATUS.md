@@ -1,13 +1,25 @@
 # Sign in with Homebase (Ente Photos web): status
 
+## Update 2026-11-02: photos are encrypted the Homebase way
+
+In Homebase mode a photo's media gets **one** layer of encryption, Homebase's, applied here
+in the browser, as every Homebase client does; Ente's encryption stays only on its record
+of the photo. `photo.ts`: the photo's ID, its key (derived from the drive key, the same as the
+proxy's), encrypting and decrypting. `thumbnails.ts`: chat-kmp's WebP thumbnails (320, 640,
+1080, 1600 px) and 20 px inline preview. The upload (`upload-service.ts` `uploadToHomebase`)
+and the reads (`download-core.ts` `downloadHomebasePhoto`) use them; the proxy stores and
+returns the bytes as they are. Checked against frodo: the stored original decrypts to the
+uploaded file byte for byte, and other Homebase apps would see a normal photo with
+thumbnails.
+
 ## Update 2026-10-30: into the gallery, with uploads
 
 **Continue to Ente Photos** (on `/homebase`) now logs in to Ente through the proxy
 ([homebase-id/ente-homebase-proxy](https://github.com/homebase-id/ente-homebase-proxy), http://localhost:8095): Ente's API goes to the proxy, and Ente's keys are set up or
 unlocked with the hidden password (`apps/photos/src/services/homebase.ts`, `logInToEnte`).
 The gallery works, and uploads are stored on Homebase. In Homebase mode
-(`ente-base/origins` `isHomebaseMode`) the client sends its token only in headers (downloads
-and upload PUTs), and uploads each file in one PUT. Checked end to end; see
+(`ente-base/origins` `isHomebaseMode`) the client sends its token only in headers, and
+uploads each photo in one request (see the 2026-11-02 update). Checked end to end; see
 the proxy repo's STATUS.md, "Milestones"; what the two share is in its CONTRACT.md. Run both: `npm run dev:photos-homebase` and the proxy.
 
 ## Todd: approve consent
