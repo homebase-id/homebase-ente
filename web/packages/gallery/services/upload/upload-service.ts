@@ -1234,19 +1234,17 @@ const encryptFile = async (
     };
 };
 
-/**
- * Homebase mode: upload a photo the Homebase way, as chat-kmp does (ente-homebase
- * photo.ts), with no Ente encryption on any of it. The photo gets its own
- * random key, locked with the drive key. Its details (Ente's metadata and
- * public magic metadata, as plain JSON) are sealed with that key, and the
- * original and its thumbnails are encrypted with it and the payload's own IV.
- * The proxy stores everything as sent and can open none of it.
- *
- * Unlike chat-kmp, which sends media to others, the original keeps its EXIF:
- * this is the owner's library, and the original is kept as it was.
- *
- * Not retried: each attempt would add a photo.
- */
+// Homebase mode: upload a photo the Homebase way, as chat-kmp does (ente-homebase
+// photo.ts), with no Ente encryption on any of it. The photo gets its own
+// random key, locked with the drive key. Its details (Ente's metadata and
+// public magic metadata, as plain JSON) are sealed with that key, and the
+// original and its thumbnails are encrypted with it and the payload's own IV.
+// The proxy stores everything as sent and can open none of it.
+//
+// Unlike chat-kmp, which sends media to others, the original keeps its EXIF:
+// this is the owner's library, and the original is kept as it was.
+//
+// Not retried: each attempt would add a photo.
 const uploadToHomebase = async (
     {
         localID,

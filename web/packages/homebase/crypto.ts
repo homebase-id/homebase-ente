@@ -21,7 +21,7 @@ export const sha256 = async (data: Bytes): Promise<Bytes> =>
 const cbcKey = (key: Bytes) =>
     subtle().importKey("raw", key, "AES-CBC", false, ["encrypt", "decrypt"]);
 
-/** AES-128-CBC with PKCS7 (the shared-secret envelope). */
+// AES-128-CBC with PKCS7 (the shared-secret envelope).
 export const aesCbcEncrypt = async (key: Bytes, iv: Bytes, data: Bytes) =>
     new Uint8Array(
         await subtle().encrypt(
@@ -40,7 +40,7 @@ export const aesCbcDecrypt = async (key: Bytes, iv: Bytes, data: Bytes) =>
         ),
     );
 
-/** AES-GCM: 12-byte nonce, 16-byte tag appended, no associated data. */
+// AES-GCM: 12-byte nonce, 16-byte tag appended, no associated data.
 export const aesGcmEncrypt = async (key: Bytes, nonce: Bytes, data: Bytes) => {
     const k = await subtle().importKey("raw", key, "AES-GCM", false, [
         "encrypt",
@@ -63,7 +63,7 @@ export const aesGcmDecrypt = async (
     );
 };
 
-/** A zkLock: base64 of 12-byte IV ‖ AES-GCM ciphertext ‖ tag. */
+// A zkLock: base64 of 12-byte IV ‖ AES-GCM ciphertext ‖ tag.
 export const openZkLock = (key: Bytes, zkLockBase64: string) => {
     const lock = fromBase64(zkLockBase64);
     return aesGcmDecrypt(key, lock.slice(0, 12), lock.slice(12));
@@ -96,11 +96,11 @@ export const hkdfSha256 = async (
 export const p384CoordinateLength = 48;
 const p384 = { name: "ECDH", namedCurve: "P-384" } as const;
 
-/** Extractable, so a pending sign-in can be kept across the redirect. */
+// Extractable, so a pending sign-in can be kept across the redirect.
 export const generateP384KeyPair = () =>
     subtle().generateKey(p384, true, ["deriveBits"]);
 
-/** Only the public fields of an EC JWK (drops `d`, `key_ops`, `ext`). */
+// Only the public fields of an EC JWK (drops `d`, `key_ops`, `ext`).
 const publicJwk = ({ kty, crv, x, y }: JsonWebKey): JsonWebKey => {
     if (
         kty === undefined ||
@@ -141,7 +141,7 @@ export const privateKeyToJwk = (privateKey: CryptoKey) =>
 export const privateKeyFromJwk = (jwk: JsonWebKey) =>
     subtle().importKey("jwk", jwk, p384, true, ["deriveBits"]);
 
-/** The public half of a private key, from its JWK (x and y are in it). */
+// The public half of a private key, from its JWK (x and y are in it).
 export const publicKeyOf = async (privateKey: CryptoKey) =>
     subtle().importKey(
         "jwk",
@@ -151,10 +151,8 @@ export const publicKeyOf = async (privateKey: CryptoKey) =>
         [],
     );
 
-/**
- * The ECDH X coordinate. WebCrypto always returns the full 48 bytes; a client
- * that drops a leading zero fails one sign-in in 256 (odin-core #1728).
- */
+// The ECDH X coordinate. WebCrypto always returns the full 48 bytes; a client
+// that drops a leading zero fails one sign-in in 256 (odin-core #1728).
 export const ecdhSharedX = async (
     privateKey: CryptoKey,
     publicKey: CryptoKey,
@@ -195,7 +193,7 @@ export const readSealKeyId = (sealed: Uint8Array): number => {
     ).getUint32(1);
 };
 
-/** Seals to a public key. Only tests need this: the identity seals. */
+// Seals to a public key. Only tests need this: the identity seals.
 export const zkSeal = async (data: Bytes, recipient: CryptoKey) => {
     const throwaway = await generateP384KeyPair();
     const key = await hkdfSha256(

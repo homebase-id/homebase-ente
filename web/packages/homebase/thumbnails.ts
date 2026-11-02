@@ -18,13 +18,11 @@ const ladder: Instruction[] = [
     { quality: 76, maxPixelDimension: 1600, maxBytes: 640 * 1024 },
 ];
 
-/** Odin refuses an inline preview over 1024 bytes; chat-kmp aims for 768. */
+// Odin refuses an inline preview over 1024 bytes; chat-kmp aims for 768.
 const tiny: Instruction = { quality: 76, maxPixelDimension: 20, maxBytes: 768 };
 
-/**
- * chat-kmp's getRevisedThumbs: the sizes below the source's, and if any were
- * dropped, one at the source's own size instead.
- */
+// chat-kmp's getRevisedThumbs: the sizes below the source's, and if any were
+// dropped, one at the source's own size instead.
 export const thumbnailSizes = (sourceMax: number): Instruction[] => {
     const low = Math.round(0.9 * sourceMax);
     const high = Math.round(1.1 * sourceMax);
@@ -69,11 +67,11 @@ export interface HomebasePreviewThumbnail {
     pixelWidth: number;
     pixelHeight: number;
     contentType: string;
-    /** Base64. */
+    // Base64.
     content: string;
 }
 
-/** WebP where the browser can encode it (Safari can't, and gets JPEG). */
+// WebP where the browser can encode it (Safari can't, and gets JPEG).
 const encode = async (
     bitmap: ImageBitmap,
     { quality, maxPixelDimension, maxBytes }: Instruction,
@@ -105,11 +103,9 @@ const encode = async (
     }
 };
 
-/**
- * The tiny preview and the thumbnail set for an image, or undefined if the
- * browser can't decode it (then pass a smaller rendition, such as Ente's own
- * thumbnail, which Ente makes for every photo and video).
- */
+// The tiny preview and the thumbnail set for an image, or undefined if the
+// browser can't decode it (then pass a smaller rendition, such as Ente's own
+// thumbnail, which Ente makes for every photo and video).
 export const homebaseThumbnails = async (source: Blob) => {
     let bitmap: ImageBitmap;
     try {

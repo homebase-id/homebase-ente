@@ -307,24 +307,22 @@ export const postEnteFile = async (
     return RemoteEnteFile.parse(await res.json());
 };
 
-/**
- * Homebase mode: upload a photo in one request to the Ente → Homebase proxy
- * (homebase-id/ente-homebase-proxy), which keeps it as one Homebase file and
- * answers like {@link postEnteFile}. Everything is already sealed or encrypted
- * the Homebase way, with no Ente encryption: the photo's details are sealed
- * with its key, and the thumbnails and file are encrypted with its key and
- * the payload IV. The proxy stores them as sent and can open none of them.
- *
- * The parts go in the order the proxy reads them: the request, one per
- * thumbnail (as listed in the request), then the file, which it streams.
- */
+// Homebase mode: upload a photo in one request to the Ente → Homebase proxy
+// (homebase-id/ente-homebase-proxy), which keeps it as one Homebase file and
+// answers like {@link postEnteFile}. Everything is already sealed or encrypted
+// the Homebase way, with no Ente encryption: the photo's details are sealed
+// with its key, and the thumbnails and file are encrypted with its key and
+// the payload IV. The proxy stores them as sent and can open none of them.
+//
+// The parts go in the order the proxy reads them: the request, one per
+// thumbnail (as listed in the request), then the file, which it streams.
 export const postHomebaseEnteFile = async (
     request: {
         fileID: number;
         collectionID: number;
-        /** The photo's details, sealed with its key. */
+        // The photo's details, sealed with its key.
         homebase: SealedRecord;
-        /** Base64 of the original's own IV, which its thumbnails share. */
+        // Base64 of the original's own IV, which its thumbnails share.
         payloadIv: string;
         contentType: string;
         previewThumbnail:

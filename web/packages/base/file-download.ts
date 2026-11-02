@@ -68,16 +68,14 @@ export const fetchFile = async (fileID: number, kind: FileKind) => {
     );
 };
 
-/**
- * Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts), as
- * the proxy stores it, still in Homebase's encryption: a thumbnail, or its
- * original.
- *
- * Homebase returns the smallest thumbnail covering the width × height asked
- * for (within 9%). The gallery's tiles are squares of about 200 px, so 400
- * device pixels on most screens: 440 × 440 gets the 640 px thumbnail of a
- * typical photo, either way up.
- */
+// Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts), as
+// the proxy stores it, still in Homebase's encryption: a thumbnail, or its
+// original.
+//
+// Homebase returns the smallest thumbnail covering the width × height asked
+// for (within 9%). The gallery's tiles are squares of about 200 px, so 400
+// device pixels on most screens: 440 × 440 gets the 640 px thumbnail of a
+// typical photo, either way up.
 export const fetchHomebasePhoto = async (
     fileID: number,
     part: "thumbnail" | "original",

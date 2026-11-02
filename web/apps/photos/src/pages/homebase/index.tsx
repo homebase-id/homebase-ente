@@ -31,11 +31,9 @@ interface SignedIn {
     fingerprint: string;
 }
 
-/**
- * Signed in with Homebase: the identity, and the hidden Ente password on its
- * drive (made by the first sign-in, found by every later one). The password
- * itself is never kept or shown, only a fingerprint of it.
- */
+// Signed in with Homebase: the identity, and the hidden Ente password on its
+// drive (made by the first sign-in, found by every later one). The password
+// itself is never kept or shown, only a fingerprint of it.
 const Page: React.FC = () => {
     const router = useRouter();
     const [signedIn, setSignedIn] = useState<SignedIn | undefined>(undefined);

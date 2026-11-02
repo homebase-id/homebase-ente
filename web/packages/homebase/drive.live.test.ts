@@ -18,7 +18,7 @@ import {
 
 const credentialsPath = process.env.HOMEBASE_CREDENTIALS;
 
-/** Marks this test's files, so cleanup touches nothing else. */
+// Marks this test's files, so cleanup touches nothing else.
 const testTag = "9ac6cac6-48a4-4c2c-a2a7-35af1869be39";
 const testFileType = 7299;
 

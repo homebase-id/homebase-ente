@@ -122,10 +122,8 @@ const createCollection = async (
     return decryptRemoteKeyAndCollection(remoteCollection);
 };
 
-/**
- * In Homebase mode an album has no Ente keys or encryption: its details are
- * sealed in this browser, the Homebase way, and the proxy stores them as sent.
- */
+// In Homebase mode an album has no Ente keys or encryption: its details are
+// sealed in this browser, the Homebase way, and the proxy stores them as sent.
 const createHomebaseCollection = async (
     name: string,
     type: CollectionType,

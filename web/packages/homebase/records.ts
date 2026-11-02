@@ -18,13 +18,13 @@ import {
 } from "./bytes";
 import { aesCbcDecrypt, aesCbcEncrypt } from "./crypto";
 
-/** A file's own key: AES-128 key and IV (chat-kmp KeyHeader). */
+// A file's own key: AES-128 key and IV (chat-kmp KeyHeader).
 export interface FileKey {
     aesKey: Bytes;
     iv: Bytes;
 }
 
-/** As Odin stores it, and as a zkDrive file's header returns it. */
+// As Odin stores it, and as a zkDrive file's header returns it.
 export interface EncryptedKeyHeader {
     encryptionVersion: number;
     type: string | number;
@@ -32,20 +32,20 @@ export interface EncryptedKeyHeader {
     encryptedAesKey: string;
 }
 
-/** {"keyHeader", "content"}: what the web app sends the proxy, and gets back. */
+// {"keyHeader", "content"}: what the web app sends the proxy, and gets back.
 export interface SealedRecord {
     keyHeader: EncryptedKeyHeader;
-    /** Base64 of the AES-CBC of the record's JSON. */
+    // Base64 of the AES-CBC of the record's JSON.
     content: string;
 }
 
-/** A new random file key (chat-kmp KeyHeader.newRandom16). */
+// A new random file key (chat-kmp KeyHeader.newRandom16).
 export const newFileKey = (): FileKey => ({
     aesKey: randomBytes(16),
     iv: randomBytes(16),
 });
 
-/** A zkDrive key header: AES-CBC(drive key, file IV, IV ‖ AesKey), 48 bytes. */
+// A zkDrive key header: AES-CBC(drive key, file IV, IV ‖ AesKey), 48 bytes.
 export const lockFileKey = async (
     fileKey: FileKey,
     driveKey: Bytes,
@@ -80,10 +80,8 @@ export const openFileKey = async (
     return { iv: combined.slice(0, 16), aesKey: combined.slice(16) };
 };
 
-/**
- * Seals `value` (as JSON) with `fileKey`, a new one unless given (a photo's
- * key also encrypts its payload).
- */
+// Seals `value` (as JSON) with `fileKey`, a new one unless given (a photo's
+// key also encrypts its payload).
 export const sealRecord = async (
     value: unknown,
     driveKey: Bytes,
@@ -102,7 +100,7 @@ export const sealRecord = async (
     fileKey,
 });
 
-/** Opens a sealed record: its parsed JSON and its key. */
+// Opens a sealed record: its parsed JSON and its key.
 export const openRecord = async (
     sealed: SealedRecord,
     driveKey: Bytes,
@@ -118,11 +116,9 @@ export const openRecord = async (
     return { value: JSON.parse(json) as unknown, fileKey };
 };
 
-/**
- * A file key as one string, the way Ente keeps keys (base64): IV ‖ AesKey
- * (chat-kmp KeyHeader.combine). Ente's EnteFile.key and Collection.key hold
- * this in Homebase mode.
- */
+// A file key as one string, the way Ente keeps keys (base64): IV ‖ AesKey
+// (chat-kmp KeyHeader.combine). Ente's EnteFile.key and Collection.key hold
+// this in Homebase mode.
 export const fileKeyToString = (fileKey: FileKey) =>
     toBase64(concat(fileKey.iv, fileKey.aesKey));
 

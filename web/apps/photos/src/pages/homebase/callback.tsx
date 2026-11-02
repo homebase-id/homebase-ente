@@ -14,10 +14,8 @@ import {
     homebaseStore,
 } from "../../services/homebase";
 
-/**
- * Where the identity sends the browser back to after YouAuth. Finishes the
- * sign-in, then goes to the signed-in page.
- */
+// Where the identity sends the browser back to after YouAuth. Finishes the
+// sign-in, then goes to the signed-in page.
 const Page: React.FC = () => {
     const router = useRouter();
     const [error, setError] = useState<string | undefined>(undefined);

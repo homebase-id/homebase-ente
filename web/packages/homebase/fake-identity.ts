@@ -37,16 +37,16 @@ export class FakeIdentity {
     readonly appZkKey = randomBytes(16);
     readonly driveKey = randomBytes(16);
     readonly files = new Map<string, StoredFile>();
-    /** The drive alias the security context grants (the Ente drive). */
+    // The drive alias the security context grants (the Ente drive).
     driveAlias: string = enteDrive.alias;
-    /** Runs just before a create is stored (to stage a race). */
+    // Runs just before a create is stored (to stage a race).
     beforeCreate: (() => Promise<void>) | undefined;
-    /** The security context's status (401 to act revoked). */
+    // The security context's status (401 to act revoked).
     contextStatus = 200;
     private exchange:
         { digest: string; secret: Bytes; clientKey: CryptoKey } | undefined;
 
-    /** The callback query the identity sends back for an authorize URL. */
+    // The callback query the identity sends back for an authorize URL.
     async approve(authorizeURL: string): Promise<URLSearchParams> {
         const url = new URL(authorizeURL);
         const clientKey = await publicKeyFromJwkJson(
@@ -157,7 +157,7 @@ export class FakeIdentity {
         return json(200, { fileId, newVersionTag: crypto.randomUUID() });
     }
 
-    /** A `fetch` that answers as this identity. */
+    // A `fetch` that answers as this identity.
     readonly fetch: typeof fetch = async (input, init) => {
         const url = new URL(
             typeof input == "string" || input instanceof URL
@@ -258,10 +258,8 @@ const indexOf = (haystack: Uint8Array, needle: Uint8Array, from: number) => {
     return -1;
 };
 
-/**
- * The parts of a multipart/form-data body by name, as bytes (FormData would
- * turn parts without a filename into text, and the metadata part is binary).
- */
+// The parts of a multipart/form-data body by name, as bytes (FormData would
+// turn parts without a filename into text, and the metadata part is binary).
 const parseMultipart = (body: Uint8Array) => {
     const firstLineEnd = indexOf(body, utf8("\r\n"), 0);
     const delimiter = utf8(`\r\n${fromUtf8(body.slice(0, firstLineEnd))}`);

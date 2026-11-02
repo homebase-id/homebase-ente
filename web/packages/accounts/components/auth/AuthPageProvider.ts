@@ -15,7 +15,7 @@ export interface AuthLoginFrameProps extends PropsWithChildren {
 export interface AuthPageConfig {
     decryptBox: SessionStorageCrypto["decryptBox"];
     LoginFrame?: ComponentType<AuthLoginFrameProps>;
-    /** Shown below the email login form, e.g. another way to sign in. */
+    // Shown below the email login form, e.g. another way to sign in.
     LoginExtra?: ComponentType;
     keepLoginLoadingOnRedirect?: boolean;
     recoveryKeyCloseDestination?: string;

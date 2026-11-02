@@ -89,11 +89,9 @@ export const RemoteEnteFile = z.looseObject({
 
 export type RemoteEnteFile = z.infer<typeof RemoteEnteFile>;
 
-/**
- * A photo's details as this app seals them in Homebase mode, in place of
- * Ente's encrypted metadata, magicMetadata and pubMagicMetadata: the same
- * values, as plain JSON inside the sealed record.
- */
+// A photo's details as this app seals them in Homebase mode, in place of
+// Ente's encrypted metadata, magicMetadata and pubMagicMetadata: the same
+// values, as plain JSON inside the sealed record.
 export const HomebaseFileDetails = z.object({
     metadata: z.unknown(),
     magicMetadata: PlainMagicMetadata.nullish().transform(nullToUndefined),
@@ -161,12 +159,10 @@ export const decryptRemoteFile = async (
     return { ...rest, id, key, metadata, magicMetadata, pubMagicMetadata };
 };
 
-/**
- * A photo kept the Homebase way: its details open with this browser's drive
- * key, with no Ente decryption (there's no Ente encryption on them). Its key
- * is the photo's own Homebase key, which also opens its original and
- * thumbnails.
- */
+// A photo kept the Homebase way: its details open with this browser's drive
+// key, with no Ente decryption (there's no Ente encryption on them). Its key
+// is the photo's own Homebase key, which also opens its original and
+// thumbnails.
 const openHomebaseFile = async (
     remoteFile: RemoteEnteFile,
 ): Promise<EnteFile> => {

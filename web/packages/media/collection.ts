@@ -138,11 +138,9 @@ export const RemoteCollection = z.looseObject({
 
 export type RemoteCollection = z.infer<typeof RemoteCollection>;
 
-/**
- * An album's details as this app seals them in Homebase mode, in place of
- * Ente's encrypted key, name and magic metadata: the same values, as plain
- * JSON inside the sealed record.
- */
+// An album's details as this app seals them in Homebase mode, in place of
+// Ente's encrypted key, name and magic metadata: the same values, as plain
+// JSON inside the sealed record.
 export const HomebaseCollectionDetails = z.object({
     type: z.string(),
     name: z.string(),
@@ -154,12 +152,10 @@ export type HomebaseCollectionDetails = z.input<
     typeof HomebaseCollectionDetails
 >;
 
-/**
- * An album kept the Homebase way: its details open with this browser's drive
- * key, with no Ente decryption (there's no Ente encryption on them). Its key
- * is the album's own Homebase key. In Homebase mode albums aren't shared
- * (Homebase shares its own way), so there are no sharees or shared settings.
- */
+// An album kept the Homebase way: its details open with this browser's drive
+// key, with no Ente decryption (there's no Ente encryption on them). Its key
+// is the album's own Homebase key. In Homebase mode albums aren't shared
+// (Homebase shares its own way), so there are no sharees or shared settings.
 export const openHomebaseCollection = async (
     collection: RemoteCollection,
 ): Promise<Collection> => {

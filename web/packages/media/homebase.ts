@@ -16,13 +16,13 @@ export const RemoteHomebaseRecord = z.object({
     content: z.string(),
 });
 
-/** Ente's MagicMetadata as plain JSON, inside a sealed record. */
+// Ente's MagicMetadata as plain JSON, inside a sealed record.
 export const PlainMagicMetadata = z.object({
     version: z.number(),
     count: z.number(),
     data: z.unknown(),
 });
 
-/** A sealed record's JSON and key, opened with this browser's drive key. */
+// A sealed record's JSON and key, opened with this browser's drive key.
 export const openHomebaseRecord = async (sealed: SealedRecord) =>
     openRecord(sealed, await homebaseDriveKey());

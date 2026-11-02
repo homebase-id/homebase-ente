@@ -33,7 +33,7 @@ export const toBase64Url = (bytes: Uint8Array | string): string =>
         .replaceAll("/", "_")
         .replace(/=+$/, "");
 
-/** Decodes standard or URL-safe base64, padded or not. */
+// Decodes standard or URL-safe base64, padded or not.
 export const fromBase64 = (value: string): Bytes => {
     const standard = value.replaceAll("-", "+").replaceAll("_", "/");
     const binary = atob(
@@ -44,7 +44,7 @@ export const fromBase64 = (value: string): Bytes => {
     return out;
 };
 
-/** getRandomValues fills at most 64 KiB per call. */
+// getRandomValues fills at most 64 KiB per call.
 export const randomBytes = (length: number): Bytes => {
     const out = new Uint8Array(length);
     for (let i = 0; i < length; i += 65_536) {
@@ -64,10 +64,8 @@ const crcTable = (() => {
     return table;
 })();
 
-/**
- * IEEE CRC-32 (what odin-core's `CRC32C.CalculateCRC32C` computes despite its
- * name).
- */
+// IEEE CRC-32 (what odin-core's `CRC32C.CalculateCRC32C` computes despite its
+// name).
 export const crc32 = (data: Uint8Array): number => {
     let crc = 0xffffffff;
     for (const byte of data) crc = crcTable[(crc ^ byte) & 0xff]! ^ (crc >>> 8);

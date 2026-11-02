@@ -12,11 +12,11 @@ import { type Bytes, fromBase64, randomBytes } from "./bytes";
 import { photo } from "./constants";
 import { aesCbcDecrypt, aesCbcEncrypt } from "./crypto";
 
-/** Whether an Ente file or thumbnail decryptionHeader is a Homebase photo's. */
+// Whether an Ente file or thumbnail decryptionHeader is a Homebase photo's.
 export const isHomebasePhoto = (decryptionHeader: string) =>
     decryptionHeader.startsWith(`${photo.format}:`);
 
-/** The payload IV in a Homebase photo's file or thumbnail decryptionHeader. */
+// The payload IV in a Homebase photo's file or thumbnail decryptionHeader.
 export const photoPayloadIv = (decryptionHeader: string): Bytes => {
     if (!isHomebasePhoto(decryptionHeader)) {
         throw new Error("Not a Homebase photo");
@@ -26,17 +26,15 @@ export const photoPayloadIv = (decryptionHeader: string): Bytes => {
     return iv;
 };
 
-/**
- * A new Ente file ID: milliseconds since 1970 × 2048 + random 0–2047, as the
- * proxy makes them (EnteIds.NewId). Increases with time; below 2^53.
- */
+// A new Ente file ID: milliseconds since 1970 × 2048 + random 0–2047, as the
+// proxy makes them (EnteIds.NewId). Increases with time; below 2^53.
 export const newPhotoID = (now = Date.now()) =>
     now * 2048 + (crypto.getRandomValues(new Uint16Array(1))[0]! % 2048);
 
-/** A payload's own IV (chat-kmp PayloadBundleEncryptionService). */
+// A payload's own IV (chat-kmp PayloadBundleEncryptionService).
 export const newPayloadIv = () => randomBytes(16);
 
-/** A payload or its thumbnail, encrypted with the photo's key and the payload's IV. */
+// A payload or its thumbnail, encrypted with the photo's key and the payload's IV.
 export const encryptPayload = (aesKey: Bytes, payloadIv: Bytes, data: Bytes) =>
     aesCbcEncrypt(aesKey, payloadIv, data);
 

@@ -574,11 +574,9 @@ const createRenderableSourceURLs = async (
     }
 };
 
-/**
- * Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts),
- * decrypted here with the photo's own key (from its sealed record) and the
- * payload's IV, which its thumbnails share. Its bytes have no Ente encryption.
- */
+// Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts),
+// decrypted here with the photo's own key (from its sealed record) and the
+// payload's IV, which its thumbnails share. Its bytes have no Ente encryption.
 const downloadHomebasePhoto = async (
     file: EnteFile,
     part: "thumbnail" | "original",

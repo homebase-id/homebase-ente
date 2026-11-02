@@ -34,14 +34,12 @@ import { RemoteHomebaseRecord } from "ente-media/homebase";
 import { t } from "i18next";
 import { z } from "zod";
 
-/**
- * The Ente → Homebase proxy (homebase-id/ente-homebase-proxy) that stands in for Ente's
- * server when signed in with Homebase.
- *
- * A path such as "/api" means the proxy that serves this app, on the same
- * site: the proxy's own build sets that.
- */
-export const homebaseProxyOrigin = () => {
+// The Ente → Homebase proxy (homebase-id/ente-homebase-proxy) that stands in for Ente's
+// server when signed in with Homebase.
+//
+// A path such as "/api" means the proxy that serves this app, on the same
+// site: the proxy's own build sets that.
+const homebaseProxyOrigin = () => {
     const proxy =
         process.env.NEXT_PUBLIC_ENTE_HOMEBASE_PROXY ?? "http://localhost:8095";
     return proxy.startsWith("/") ? `${window.location.origin}${proxy}` : proxy;
@@ -49,20 +47,18 @@ export const homebaseProxyOrigin = () => {
 
 let _store: CredentialsStore | undefined;
 
-/** Where this browser keeps its Homebase sign-in (sealed, in IndexedDB). */
+// Where this browser keeps its Homebase sign-in (sealed, in IndexedDB).
 export const homebaseStore = () => (_store ??= indexedDBCredentialsStore());
 
-/**
- * What to log about a failure: its kind and HTTP status, never the error
- * itself, since a failing call's context could hold a secret.
- */
+// What to log about a failure: its kind and HTTP status, never the error
+// itself, since a failing call's context could hold a secret.
 export const homebaseFailureLabel = (e: unknown) => {
     if (e instanceof YouAuthError) return `YouAuthError(${e.kind})`;
     if (e instanceof HomebaseHttpError) return `HTTP ${e.status}`;
     return e instanceof Error ? e.name : "unknown error";
 };
 
-/** What to tell the user about a failed sign-in or Homebase call. */
+// What to tell the user about a failed sign-in or Homebase call.
 export const homebaseErrorMessage = (e: unknown) => {
     if (!(e instanceof YouAuthError)) return t("generic_error");
     switch (e.kind) {
@@ -101,7 +97,7 @@ const fetchKeyAttributes = async (drive: HomebaseDrive) => {
     return RemoteKeyAttributes.parse(value);
 };
 
-/** PUT /users/attributes; false if another device set them first (403). */
+// PUT /users/attributes; false if another device set them first (403).
 const putKeyAttributes = async (
     drive: HomebaseDrive,
     keyAttributes: KeyAttributes,
@@ -137,16 +133,14 @@ const unlockMasterKey = async (
         ),
     );
 
-/**
- * Logs in to Ente Photos with a Homebase sign-in and its hidden Ente password:
- * Ente's API goes to the proxy, and Ente's keys are set up (first time) or
- * unlocked with the password, as Ente's own sign-up and login pages would.
- * Afterwards the app is logged in as usual and can go to the gallery.
- *
- * Prototype: Ente keeps its auth token unencrypted in localStorage and
- * IndexedDB, and here that token is the X-Auth-Token (the sign-in, but not
- * the drive key).
- */
+// Logs in to Ente Photos with a Homebase sign-in and its hidden Ente password:
+// Ente's API goes to the proxy, and Ente's keys are set up (first time) or
+// unlocked with the password, as Ente's own sign-up and login pages would.
+// Afterwards the app is logged in as usual and can go to the gallery.
+//
+// Prototype: Ente keeps its auth token unencrypted in localStorage and
+// IndexedDB, and here that token is the X-Auth-Token (the sign-in, but not
+// the drive key).
 export const logInToEnte = async (drive: HomebaseDrive, password: string) => {
     const { identity } = drive.session;
     const token = xAuthToken(drive.session);

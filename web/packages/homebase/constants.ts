@@ -8,7 +8,7 @@
 
 import type { AppRegistration } from "./youauth";
 
-/** The zero-knowledge drive Ente Photos asks for. */
+// The zero-knowledge drive Ente Photos asks for.
 export const enteDrive = {
     alias: "0ada68d639fd7c0c7f35e46d80665c0c",
     type: "762e8336095125323b9d7c0913f3ac7c",
@@ -27,34 +27,30 @@ export const enteApp: Omit<AppRegistration, "clientFriendlyName"> = {
     drives: [enteDrive],
 };
 
-/** The file on {@link enteDrive} that holds the generated Ente password. */
+// The file on {@link enteDrive} that holds the generated Ente password.
 export const passwordFile = {
     uniqueId: "c7a886cd-326a-41db-9922-e92828ed02ec",
-    /** Ente's own range; Immich uses 7100–7102. */
+    // Ente's own range; Immich uses 7100–7102.
     fileType: 7200,
 } as const;
 
-/**
- * The file on {@link enteDrive} that holds Ente's key attributes (the master
- * key, locked with the Ente password), sealed by this app (records.ts). The
- * proxy keeps it for PUT /users/attributes and GET /users/session-validity/v2.
- */
+// The file on {@link enteDrive} that holds Ente's key attributes (the master
+// key, locked with the Ente password), sealed by this app (records.ts). The
+// proxy keeps it for PUT /users/attributes and GET /users/session-validity/v2.
 export const keyAttributesFile = {
     uniqueId: "d269c173-71a3-4fe4-8ee4-8d4da5c929e7",
     fileType: 7201,
 } as const;
 
-/**
- * A photo on {@link enteDrive}, kept the Homebase way (photo.ts): one file
- * with its own key, whose content is its sealed details and whose payload is
- * the original, with Homebase thumbnails. No Ente encryption on any of it.
- */
+// A photo on {@link enteDrive}, kept the Homebase way (photo.ts): one file
+// with its own key, whose content is its sealed details and whose payload is
+// the original, with Homebase thumbnails. No Ente encryption on any of it.
 export const photo = {
     fileType: 7210,
     payloadKey: "original",
-    /** Ente's decryptionHeader on a photo kept this way (with ":" and the payload IV on the file and thumbnail). */
+    // Ente's decryptionHeader on a photo kept this way (with ":" and the payload IV on the file and thumbnail).
     format: "homebase-v2",
 } as const;
 
-/** Where YouAuth sends the browser back to, relative to the app's origin. */
+// Where YouAuth sends the browser back to, relative to the app's origin.
 export const homebaseCallbackPath = "/homebase/callback";

@@ -7,12 +7,10 @@ import { toBase64, toBase64Url, utf8 } from "./bytes";
 import type { AppCredentials } from "./context";
 import { sha256 } from "./crypto";
 
-/**
- * The X-Auth-Token for the proxy: base64url of {"v":2,"identity","token","ss"}.
- * No drive key: this app seals and opens everything on the drive itself, so
- * the proxy never gets it. Still a secret (it signs in to the identity):
- * never in a URL or a log.
- */
+// The X-Auth-Token for the proxy: base64url of {"v":2,"identity","token","ss"}.
+// No drive key: this app seals and opens everything on the drive itself, so
+// the proxy never gets it. Still a secret (it signs in to the identity):
+// never in a URL or a log.
 export const xAuthToken = (session: AppCredentials) =>
     toBase64Url(
         JSON.stringify({
@@ -23,15 +21,13 @@ export const xAuthToken = (session: AppCredentials) =>
         }),
     );
 
-/**
- * Ente's user ID for an identity: the first 6 bytes of SHA-256(identity) as a
- * number (below 2^48, so exact in JavaScript). Stable, and the same on every
- * device and in the proxy.
- */
+// Ente's user ID for an identity: the first 6 bytes of SHA-256(identity) as a
+// number (below 2^48, so exact in JavaScript). Stable, and the same on every
+// device and in the proxy.
 export const enteUserID = async (identity: string) => {
     const digest = await sha256(utf8(identity));
     return digest.slice(0, 6).reduce((n, byte) => n * 256 + byte, 0);
 };
 
-/** The email Ente shows for a Homebase identity (it has none of its own). */
+// The email Ente shows for a Homebase identity (it has none of its own).
 export const enteEmail = (identity: string) => `${identity}@homebase.invalid`;
