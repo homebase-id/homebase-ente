@@ -26,24 +26,24 @@ import {
 } from "./crypto";
 
 export interface DriveRequest {
-    /** 32 hex. */
+    // 32 hex.
     alias: string;
-    /** 32 hex. */
+    // 32 hex.
     type: string;
     name: string;
     description: string;
-    /** 3 is read + write (DrivePermission.cs). */
+    // 3 is read + write (DrivePermission.cs).
     permission: number;
     driveSlug: string;
     driveTypeSlug: string;
-    /** "private" makes it a zero-knowledge drive. */
+    // "private" makes it a zero-knowledge drive.
     sharingModel: "private" | "selectiveShare" | "collaborative";
 }
 
 export interface AppRegistration {
     appId: string;
     appName: string;
-    /** Immutable once registered: `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`. */
+    // Immutable once registered: `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`.
     appSlug: string;
     clientFriendlyName: string;
     drives: DriveRequest[];
@@ -56,29 +56,29 @@ export interface PendingSignIn {
     redirectURI: string;
 }
 
-/** What an app holds after YouAuth. All of it is secret. */
+// What an app holds after YouAuth. All of it is secret.
 export interface YouAuthCredentials {
     identity: string;
-    /** 33 bytes; sent as `Authorization: Bearer <base64>`. */
+    // 33 bytes; sent as `Authorization: Bearer <base64>`.
     clientAuthToken: Bytes;
-    /** 16 bytes; the key of the `{iv, data}` envelopes. */
+    // 16 bytes; the key of the `{iv, data}` envelopes.
     sharedSecret: Bytes;
-    /** 16 bytes; the app's key to its zero-knowledge drives. */
+    // 16 bytes; the app's key to its zero-knowledge drives.
     appZkKey: Bytes;
 }
 
 export type YouAuthErrorKind =
-    /** The owner said no (`cancelled-by-user`, `access-denied`). */
+    // The owner said no (`cancelled-by-user`, `access-denied`).
     | "denied"
-    /** The owner revoked the app. */
+    // The owner revoked the app.
     | "revoked"
-    /** The callback isn't for the sign-in this browser started. */
+    // The callback isn't for the sign-in this browser started.
     | "state-mismatch"
-    /** The token exchange failed: expired (5 min), reused, or refused. */
+    // The token exchange failed: expired (5 min), reused, or refused.
     | "exchange-failed"
-    /** The identity gave no zero-knowledge app key (odin-core too old). */
+    // The identity gave no zero-knowledge app key (odin-core too old).
     | "no-zero-knowledge"
-    /** A call was refused (401/403): sign in with Homebase again. */
+    // A call was refused (401/403): sign in with Homebase again.
     | "unauthorized"
     | "other";
 
@@ -92,7 +92,7 @@ export class YouAuthError extends Error {
     }
 }
 
-/** "https://Frodo.Example/x" → "frodo.example". */
+// "https://Frodo.Example/x" → "frodo.example".
 export const normalizeIdentity = (identity: string) =>
     identity
         .trim()
@@ -118,10 +118,8 @@ const toDriveParam = (drive: DriveRequest) => ({
     sm: drive.sharingModel,
 });
 
-/**
- * Step 1 and 2: a fresh key pair and state, and the URL of the identity's
- * authorize page. Keep `pending` until the callback.
- */
+// Step 1 and 2: a fresh key pair and state, and the URL of the identity's
+// authorize page. Keep `pending` until the callback.
 export const createAuthorizeRequest = async (
     identity: string,
     app: AppRegistration,
@@ -175,7 +173,7 @@ interface TokenResponse {
     zkAppKey?: string | null;
 }
 
-/** An aes-gcm token field: the nonce is the first 12 bytes of the 16-byte IV. */
+// An aes-gcm token field: the nonce is the first 12 bytes of the 16-byte IV.
 const openTokenField = (key: Bytes, ivBase64: string, cipherBase64: string) =>
     aesGcmDecrypt(
         key,
@@ -196,10 +194,8 @@ const callbackError = (error: string, description: string | null) => {
     }
 };
 
-/**
- * Derives the exchange secret: HKDF-SHA256(ECDH X, 48 bytes, salt), no info,
- * 16 bytes.
- */
+// Derives the exchange secret: HKDF-SHA256(ECDH X, 48 bytes, salt), no info,
+// 16 bytes.
 export const exchangeSecret = async (
     privateKey: CryptoKey,
     remotePublicKeyBase64: string,
@@ -216,10 +212,8 @@ export const exchangeSecret = async (
         new Uint8Array(0),
     );
 
-/**
- * Steps 3 to 7: finishes a sign-in from the callback's query, trusting the
- * identity it sent the browser to, never one the callback names.
- */
+// Steps 3 to 7: finishes a sign-in from the callback's query, trusting the
+// identity it sent the browser to, never one the callback names.
 export const completeSignIn = async (
     pending: PendingSignIn,
     callback: URLSearchParams,

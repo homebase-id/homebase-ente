@@ -37,7 +37,7 @@ const memoryStorage = () => {
 
 const origin = "http://localhost:3020";
 
-/** A whole sign-in: start, the owner approves, the callback finishes it. */
+// A whole sign-in: start, the owner approves, the callback finishes it.
 const signIn = async (identity: FakeIdentity, store = memoryStore()) => {
     const pending = memoryStorage();
     const url = await startHomebaseSignIn(identity.identity, origin, pending);

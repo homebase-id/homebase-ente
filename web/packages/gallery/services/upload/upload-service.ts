@@ -14,6 +14,7 @@ import {
     type PublicAlbumsCredentials,
 } from "ente-base/http";
 import log from "ente-base/log";
+import { isHomebaseMode } from "ente-base/origins";
 import { extractExif } from "ente-gallery/services/exif";
 import {
     determineVideoDuration,
@@ -24,7 +25,20 @@ import {
     isFileTypeNotSupportedError,
 } from "ente-gallery/utils/detect-type";
 import { readStream } from "ente-gallery/utils/native-stream";
-import { decryptRemoteFile, type EnteFile } from "ente-media/file";
+import {
+    encryptPayload,
+    homebaseDriveKey,
+    homebaseThumbnails,
+    newPayloadIv,
+    newPhotoID,
+    sealRecord,
+    toBase64,
+} from "ente-homebase";
+import {
+    decryptRemoteFile,
+    type EnteFile,
+    type HomebaseFileDetails,
+} from "ente-media/file";
 import {
     fileFileName,
     metadataHash,
@@ -63,6 +77,7 @@ import {
     fetchUploadURLs,
     fetchUploadURLWithMetadata,
     postEnteFile,
+    postHomebaseEnteFile,
     postPublicAlbumsEnteFile,
     putFile,
     putFilePart,
@@ -582,6 +597,22 @@ export const upload = async (
                 ...(uploaderName && { uploaderName }),
             },
         };
+
+        // Homebase: sealed the Homebase way, with no Ente encryption.
+        if (await isHomebaseMode()) {
+            const uploadedFile = await uploadToHomebase(
+                fileWithMetadata,
+                fileTypeInfo,
+                collection,
+                uploadContext,
+            );
+            return {
+                type: metadata.hasStaticThumbnail
+                    ? "uploadedWithStaticThumbnail"
+                    : "uploaded",
+                file: await decryptRemoteFile(uploadedFile, collection.key),
+            };
+        }
 
         const { encryptedFilePieces, encryptedFileKey } = await encryptFile(
             fileWithMetadata,
@@ -1201,6 +1232,86 @@ const encryptFile = async (
         },
         encryptedFileKey,
     };
+};
+
+// Homebase mode: upload a photo the Homebase way, as chat-kmp does (ente-homebase
+// photo.ts), with no Ente encryption on any of it. The photo gets its own
+// random key, locked with the drive key. Its details (Ente's metadata and
+// public magic metadata, as plain JSON) are sealed with that key, and the
+// original and its thumbnails are encrypted with it and the payload's own IV.
+// The proxy stores everything as sent and can open none of it.
+//
+// Unlike chat-kmp, which sends media to others, the original keeps its EXIF:
+// this is the owner's library, and the original is kept as it was.
+//
+// Not retried: each attempt would add a photo.
+const uploadToHomebase = async (
+    {
+        localID,
+        fileStreamOrData,
+        thumbnail,
+        metadata,
+        publicMagicMetadata,
+    }: FileWithMetadata,
+    { mimeType }: FileTypeInfo,
+    collection: { id: number },
+    { abortIfCancelled, updateUploadProgress }: UploadContext,
+) => {
+    const data =
+        fileStreamOrData instanceof Uint8Array
+            ? fileStreamOrData
+            : await readEntireStream(fileStreamOrData.stream);
+    abortIfCancelled();
+
+    // From the image itself where the browser can decode it; else (videos,
+    // live photos, HEIC) from the thumbnail Ente made.
+    const thumbnails =
+        (metadata.fileType == FileType.image &&
+            (await homebaseThumbnails(new Blob([data])))) ||
+        (await homebaseThumbnails(new Blob([thumbnail])));
+
+    const pubMagicMetadata = createMagicMetadata(publicMagicMetadata);
+    const details: HomebaseFileDetails = {
+        metadata,
+        ...(pubMagicMetadata.count && { pubMagicMetadata }),
+    };
+    const { sealed, fileKey } = await sealRecord(
+        details,
+        await homebaseDriveKey(),
+    );
+    const payloadIv = newPayloadIv();
+    const encryptedThumbnails = await Promise.all(
+        (thumbnails?.thumbnails ?? []).map((t) =>
+            encryptPayload(fileKey.aesKey, payloadIv, t.bytes),
+        ),
+    );
+    const encryptedData = await encryptPayload(fileKey.aesKey, payloadIv, data);
+    abortIfCancelled();
+
+    const uploadedFile = await postHomebaseEnteFile(
+        {
+            fileID: newPhotoID(),
+            collectionID: collection.id,
+            homebase: sealed,
+            payloadIv: toBase64(payloadIv),
+            contentType:
+                metadata.fileType == FileType.livePhoto
+                    ? "application/zip"
+                    : (mimeType ?? "application/octet-stream"),
+            previewThumbnail: thumbnails?.previewThumbnail,
+            thumbnails: (thumbnails?.thumbnails ?? []).map(
+                ({ pixelWidth, pixelHeight, contentType }) => ({
+                    pixelWidth,
+                    pixelHeight,
+                    contentType,
+                }),
+            ),
+        },
+        encryptedThumbnails,
+        encryptedData,
+    );
+    updateUploadProgress(localID, 100);
+    return uploadedFile;
 };
 
 const encryptBytesWithOptionalVerification = async (

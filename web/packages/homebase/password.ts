@@ -10,7 +10,7 @@ import { type HomebaseDrive, isExistingUniqueIdError } from "./drive";
 
 export interface EntePassword {
     password: string;
-    /** Whether this sign-in made it (the first for this identity). */
+    // Whether this sign-in made it (the first for this identity).
     created: boolean;
 }
 
@@ -22,11 +22,9 @@ const readPassword = async (drive: HomebaseDrive) => {
     return password;
 };
 
-/**
- * The Ente password on the drive, creating it if this is the first sign-in.
- * An existing password file is never overwritten: if another device creates
- * one first, this reads that one.
- */
+// The Ente password on the drive, creating it if this is the first sign-in.
+// An existing password file is never overwritten: if another device creates
+// one first, this reads that one.
 export const ensureEntePassword = async (
     drive: HomebaseDrive,
 ): Promise<EntePassword> => {
@@ -49,7 +47,7 @@ export const ensureEntePassword = async (
     }
 };
 
-/** First 8 hex digits of the password's SHA-256: safe to show. */
+// First 8 hex digits of the password's SHA-256: safe to show.
 export const passwordFingerprint = async (password: string) =>
     Array.from((await sha256(utf8(password))).slice(0, 4), (b) =>
         b.toString(16).padStart(2, "0"),

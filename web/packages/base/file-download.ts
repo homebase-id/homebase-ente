@@ -6,7 +6,7 @@ import {
     publicRequestHeaders,
     type PublicAlbumsCredentials,
 } from "./http";
-import { apiURL, customAPIOrigin } from "./origins";
+import { apiURL, customAPIOrigin, isHomebaseMode } from "./origins";
 import {
     authenticatedPublicMemoryRequestHeaders,
     type PublicMemoryCredentials,
@@ -45,6 +45,13 @@ const legacyFilePath = (kind: FileKind) =>
     kind == "file" ? "download" : "preview";
 
 export const fetchFile = async (fileID: number, kind: FileKind) => {
+    // Homebase: the proxy serves the bytes itself, authenticated by header.
+    if (await isHomebaseMode()) {
+        return fetch(await apiURL(`/files/${legacyFilePath(kind)}/${fileID}`), {
+            headers: await authenticatedRequestHeaders(),
+        });
+    }
+
     const response = await tryFetchFileUsingV3(
         `/files/${filePath(kind)}/v3/${fileID}`,
         await authenticatedRequestHeaders(),
@@ -60,6 +67,27 @@ export const fetchFile = async (fileID: number, kind: FileKind) => {
         { headers: publicRequestHeaders() },
     );
 };
+
+// Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts), as
+// the proxy stores it, still in Homebase's encryption: a thumbnail, or its
+// original.
+//
+// Homebase returns the smallest thumbnail covering the width × height asked
+// for (within 9%). The gallery's tiles are squares of about 200 px, so 400
+// device pixels on most screens: 440 × 440 gets the 640 px thumbnail of a
+// typical photo, either way up.
+export const fetchHomebasePhoto = async (
+    fileID: number,
+    part: "thumbnail" | "original",
+) =>
+    fetch(
+        await apiURL(
+            part == "thumbnail"
+                ? `/homebase/files/${fileID}/thumb?width=440&height=440`
+                : `/homebase/files/${fileID}/original`,
+        ),
+        { headers: await authenticatedRequestHeaders() },
+    );
 
 export const fetchPublicCollectionFile = async (
     fileID: number,

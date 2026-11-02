@@ -14,14 +14,14 @@ import {
 } from "./bytes";
 import type { YouAuthCredentials } from "./youauth";
 
-/** Enough of a key-value store to keep the sealed credentials in. */
+// Enough of a key-value store to keep the sealed credentials in.
 export interface CredentialsStore {
     get: (key: string) => Promise<unknown>;
     set: (key: string, value: unknown) => Promise<void>;
     delete: (key: string) => Promise<void>;
 }
 
-/** The browser's store: its own IndexedDB database, one object store. */
+// The browser's store: its own IndexedDB database, one object store.
 export const indexedDBCredentialsStore = (): CredentialsStore => {
     const db = openDB("ente-homebase", 1, {
         upgrade: (db) => void db.createObjectStore("kv"),
@@ -81,7 +81,7 @@ export const saveCredentials = async (
     await store.set(credentialsName, { iv, sealed } satisfies Sealed);
 };
 
-/** The saved credentials, or `undefined` if this browser isn't signed in. */
+// The saved credentials, or `undefined` if this browser isn't signed in.
 export const loadCredentials = async (
     store: CredentialsStore,
 ): Promise<YouAuthCredentials | undefined> => {
@@ -104,7 +104,7 @@ export const loadCredentials = async (
     };
 };
 
-/** Forgets the sign-in, and the key that sealed it. */
+// Forgets the sign-in, and the key that sealed it.
 export const clearCredentials = async (store: CredentialsStore) => {
     await store.delete(credentialsName);
     await store.delete(sealingKeyName);

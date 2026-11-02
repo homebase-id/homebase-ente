@@ -10,7 +10,6 @@
 
 import {
     type Bytes,
-    concat,
     fromBase64,
     fromUtf8,
     randomBytes,
@@ -25,23 +24,17 @@ import {
     isEnvelope,
 } from "./context";
 import { aesCbcDecrypt, aesCbcEncrypt } from "./crypto";
+import {
+    type EncryptedKeyHeader,
+    lockFileKey,
+    newFileKey,
+    openFileKey,
+} from "./records";
 
-/** A signed-in app's access to one of its zero-knowledge drives. */
+// A signed-in app's access to one of its zero-knowledge drives.
 export interface DriveSession extends AppCredentials {
     driveAlias: string;
     driveKey: Bytes;
-}
-
-interface FileKey {
-    aesKey: Bytes;
-    iv: Bytes;
-}
-
-interface EncryptedKeyHeader {
-    encryptionVersion: number;
-    type: string | number;
-    iv: string;
-    encryptedAesKey: string;
 }
 
 export interface FileHeader {
@@ -62,7 +55,7 @@ export interface NewFile {
     uniqueId: string;
     fileType: number;
     tags?: string[];
-    /** Encrypted with the file's key before it leaves the browser. */
+    // Encrypted with the file's key before it leaves the browser.
     content: string;
 }
 
@@ -70,7 +63,7 @@ export class HomebaseHttpError extends Error {
     constructor(
         message: string,
         readonly status: number,
-        /** Odin's `errorCode`, as a name or a number. */
+        // Odin's `errorCode`, as a name or a number.
         readonly errorCode: string | number | undefined,
     ) {
         super(message);
@@ -78,55 +71,18 @@ export class HomebaseHttpError extends Error {
     }
 }
 
-/**
- * Whether a create was refused because a file with that uniqueId exists
- * (OdinClientErrorCode.ExistingFileWithUniqueId).
- */
+// Whether a create was refused because a file with that uniqueId exists
+// (OdinClientErrorCode.ExistingFileWithUniqueId).
 export const isExistingUniqueIdError = (e: unknown) =>
     e instanceof HomebaseHttpError &&
     e.status == 400 &&
     (e.errorCode == "existingFileWithUniqueId" || e.errorCode == 4105);
 
-/** "0ada68…" → "0ada68d6-39fd-7c0c-7f35-e46d80665c0c". */
+// "0ada68…" → "0ada68d6-39fd-7c0c-7f35-e46d80665c0c".
 export const toGuid = (value: string) => {
     const hex = value.replaceAll("-", "").toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(hex)) throw new Error("Not a GUID");
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-};
-
-/** A zkDrive key header: AES-CBC(DrvK, file IV, IV ‖ AesKey), 48 bytes. */
-const lockFileKey = async (
-    fileKey: FileKey,
-    driveKey: Bytes,
-): Promise<EncryptedKeyHeader> => ({
-    encryptionVersion: 1,
-    type: "zkDrive",
-    iv: toBase64(fileKey.iv),
-    encryptedAesKey: toBase64(
-        await aesCbcEncrypt(
-            driveKey,
-            fileKey.iv,
-            concat(fileKey.iv, fileKey.aesKey),
-        ),
-    ),
-});
-
-const openFileKey = async (
-    header: EncryptedKeyHeader,
-    driveKey: Bytes,
-): Promise<FileKey> => {
-    if (header.type != "zkDrive" && header.type != 13) {
-        throw new Error("Not a zkDrive key header");
-    }
-    const combined = await aesCbcDecrypt(
-        driveKey,
-        fromBase64(header.iv),
-        fromBase64(header.encryptedAesKey),
-    );
-    if (combined.length != 32) {
-        throw new Error("A zkDrive key header holds 32 bytes");
-    }
-    return { iv: combined.slice(0, 16), aesKey: combined.slice(16) };
 };
 
 export class HomebaseDrive {
@@ -171,7 +127,7 @@ export class HomebaseDrive {
         return response;
     }
 
-    /** A shared-secret envelope (recognised by shape), or plain JSON. */
+    // A shared-secret envelope (recognised by shape), or plain JSON.
     private async readJson<T>(response: Response): Promise<T | undefined> {
         const text = await response.text();
         if (!text) return undefined;
@@ -183,12 +139,10 @@ export class HomebaseDrive {
         return plain ? (JSON.parse(plain) as T) : undefined;
     }
 
-    /**
-     * Creates a file. Fails with {@link isExistingUniqueIdError} if a file
-     * with the same uniqueId exists; it never overwrites one.
-     */
+    // Creates a file. Fails with {@link isExistingUniqueIdError} if a file
+    // with the same uniqueId exists; it never overwrites one.
     async createFile(file: NewFile): Promise<{ fileId: string }> {
-        const fileKey = { aesKey: randomBytes(16), iv: randomBytes(16) };
+        const fileKey = newFileKey();
         const transferIv = randomBytes(16);
         const instructions = {
             transferIv: toBase64(transferIv),
@@ -253,7 +207,7 @@ export class HomebaseDrive {
         return { fileId: result.fileId };
     }
 
-    /** The file with this uniqueId, or `undefined` if there is none. */
+    // The file with this uniqueId, or `undefined` if there is none.
     async getHeaderByUniqueId(uniqueId: string) {
         try {
             return await this.readJson<FileHeader>(
@@ -269,7 +223,7 @@ export class HomebaseDrive {
         }
     }
 
-    /** A file's content, decrypted with its key. */
+    // A file's content, decrypted with its key.
     async decryptContent(header: FileHeader) {
         const content = header.fileMetadata.appData.content;
         if (!content) return undefined;
@@ -280,7 +234,7 @@ export class HomebaseDrive {
         return fromUtf8(await aesCbcDecrypt(aesKey, iv, fromBase64(content)));
     }
 
-    /** Headers of the files with any of these tags (for cleaning up tests). */
+    // Headers of the files with any of these tags (for cleaning up tests).
     async queryByTags(tags: string[]) {
         const response = await this.send(`${this.filesRoot}/query-batch`, {
             method: "POST",
@@ -307,7 +261,7 @@ export class HomebaseDrive {
         return result?.searchResults ?? [];
     }
 
-    /** Deletes files for good. Only ever called on files the caller made. */
+    // Deletes files for good. Only ever called on files the caller made.
     async hardDelete(headers: FileHeader[]) {
         await this.send(`${this.filesRoot}/hard-delete-batch`, {
             method: "POST",

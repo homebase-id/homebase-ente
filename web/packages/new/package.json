@@ -9,6 +9,7 @@
         "ente-accounts": "*",
         "ente-base": "*",
         "ente-gallery": "*",
+        "ente-homebase": "*",
         "ente-photos-wasm": "*",
         "ente-utils": "*",
         "i18next": "26.4.2",

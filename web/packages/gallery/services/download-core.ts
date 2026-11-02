@@ -6,7 +6,15 @@ import {
     initChunkDecryption,
 } from "ente-base/crypto";
 import { namedError } from "ente-base/error";
+import { fetchHomebasePhoto } from "ente-base/file-download";
+import { ensureOk } from "ente-base/http";
 import log from "ente-base/log";
+import {
+    decryptPayload,
+    fileKeyFromString,
+    isHomebasePhoto,
+    photoPayloadIv,
+} from "ente-homebase";
 import type { EnteFile } from "ente-media/file";
 import { fileFileName } from "ente-media/file-metadata";
 import { FileType } from "ente-media/file-type";
@@ -169,6 +177,8 @@ class DownloadManagerCore {
     }
 
     private downloadThumbnail = async (file: EnteFile) => {
+        if (isHomebasePhoto(file.thumbnail.decryptionHeader))
+            return wrapErrors(() => downloadHomebasePhoto(file, "thumbnail"));
         const encryptedData = await wrapErrors(() =>
             this.transport.downloadThumbnail(file),
         );
@@ -261,6 +271,13 @@ class DownloadManagerCore {
         log.info(`download attempted for file id ${file.id}`);
 
         try {
+            if (isHomebasePhoto(file.file.decryptionHeader)) {
+                const data = await wrapErrors(() =>
+                    downloadHomebasePhoto(file, "original"),
+                );
+                return new Response(data).body;
+            }
+
             const res = await wrapErrors(() =>
                 this.transport.downloadFile(file, opts),
             );
@@ -555,4 +572,25 @@ const createRenderableSourceURLs = async (
             throw new Error(`Unsupported file type ${fileType}`);
         }
     }
+};
+
+// Homebase mode: a photo kept the Homebase way (ente-homebase photo.ts),
+// decrypted here with the photo's own key (from its sealed record) and the
+// payload's IV, which its thumbnails share. Its bytes have no Ente encryption.
+const downloadHomebasePhoto = async (
+    file: EnteFile,
+    part: "thumbnail" | "original",
+) => {
+    const res = await fetchHomebasePhoto(file.id, part);
+    ensureOk(res);
+    const { aesKey } = fileKeyFromString(file.key);
+    const header =
+        part == "thumbnail"
+            ? file.thumbnail.decryptionHeader
+            : file.file.decryptionHeader;
+    return decryptPayload(
+        aesKey,
+        photoPayloadIv(header),
+        new Uint8Array(await res.arrayBuffer()),
+    );
 };

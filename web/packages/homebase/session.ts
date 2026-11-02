@@ -1,12 +1,14 @@
 // Signing in to Ente Photos with Homebase from a browser: start YouAuth, finish
 // it on the callback page, and open the app's drive with what it left.
 
+import type { Bytes } from "./bytes";
 import { enteApp, enteDrive, homebaseCallbackPath } from "./constants";
 import { getSecurityContext, openDriveKey } from "./context";
 import { HomebaseDrive } from "./drive";
 import {
     clearCredentials,
     type CredentialsStore,
+    indexedDBCredentialsStore,
     loadCredentials,
     saveCredentials,
 } from "./store";
@@ -18,17 +20,15 @@ import {
     YouAuthError,
 } from "./youauth";
 
-/** sessionStorage key of the sign-in in progress (until the callback). */
+// sessionStorage key of the sign-in in progress (until the callback).
 const pendingKey = "ente-homebase-pending";
 
-/** What the identity shows the owner as the device asking. */
+// What the identity shows the owner as the device asking.
 const clientFriendlyName = (userAgent: string) =>
     `Ente Photos web (${userAgent.includes("Mac") ? "Mac" : userAgent.includes("Windows") ? "Windows" : "browser"})`;
 
-/**
- * Starts a sign-in: keeps the pending sign-in in {@link pendingStorage} and
- * returns the identity's authorize URL to send the browser to.
- */
+// Starts a sign-in: keeps the pending sign-in in {@link pendingStorage} and
+// returns the identity's authorize URL to send the browser to.
 export const startHomebaseSignIn = async (
     identity: string,
     origin: string,
@@ -44,7 +44,7 @@ export const startHomebaseSignIn = async (
     return url;
 };
 
-/** The app's drive, opened with the drive key from the security context. */
+// The app's drive, opened with the drive key from the security context.
 export const openHomebaseDrive = async (
     credentials: YouAuthCredentials,
     fetchImpl: typeof fetch = (...args) => fetch(...args),
@@ -61,11 +61,9 @@ export const openHomebaseDrive = async (
     );
 };
 
-/**
- * Finishes a sign-in from the callback's query. It counts only once the
- * drive key opens; then the credentials are saved. The pending sign-in is
- * deleted whether or not it worked.
- */
+// Finishes a sign-in from the callback's query. It counts only once the
+// drive key opens; then the credentials are saved. The pending sign-in is
+// deleted whether or not it worked.
 export const finishHomebaseSignIn = async (
     callback: URLSearchParams,
     pendingStorage: Pick<Storage, "getItem" | "removeItem">,
@@ -87,7 +85,7 @@ export const finishHomebaseSignIn = async (
     return credentials.identity;
 };
 
-/** The drive of the signed-in identity, or `undefined` if not signed in. */
+// The drive of the signed-in identity, or `undefined` if not signed in.
 export const openSavedHomebaseDrive = async (
     store: CredentialsStore,
     fetchImpl: typeof fetch = (...args) => fetch(...args),
@@ -99,6 +97,30 @@ export const openSavedHomebaseDrive = async (
 export const hasHomebaseSignIn = async (store: CredentialsStore) =>
     !!(await loadCredentials(store));
 
-/** Signs out: forgets the credentials (the drive and its files stay). */
-export const signOutOfHomebase = (store: CredentialsStore) =>
-    clearCredentials(store);
+let _driveKey: Promise<Bytes> | undefined;
+
+// This browser's key for Ente's drive, opened from the saved sign-in once per
+// page load (one call to the identity). Everything on the drive is sealed and
+// opened with it here; it's never sent anywhere, the proxy included.
+export const homebaseDriveKey = (): Promise<Bytes> => {
+    if (!_driveKey) {
+        const opening = openSavedHomebaseDrive(
+            indexedDBCredentialsStore(),
+        ).then((drive) => {
+            if (!drive) throw new Error("Not signed in with Homebase");
+            return drive.session.driveKey;
+        });
+        _driveKey = opening;
+        // A failure isn't kept: the next call tries again.
+        opening.catch(() => {
+            if (_driveKey === opening) _driveKey = undefined;
+        });
+    }
+    return _driveKey;
+};
+
+// Signs out: forgets the credentials (the drive and its files stay).
+export const signOutOfHomebase = (store: CredentialsStore) => {
+    _driveKey = undefined;
+    return clearCredentials(store);
+};

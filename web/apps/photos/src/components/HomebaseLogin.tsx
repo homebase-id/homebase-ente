@@ -19,10 +19,8 @@ import {
     homebaseStore,
 } from "../services/homebase";
 
-/**
- * "Sign in with Homebase", below the email login: an identity field that
- * sends the browser to that identity's YouAuth page.
- */
+// "Sign in with Homebase", below the email login: an identity field that
+// sends the browser to that identity's YouAuth page.
 export const HomebaseLogin: React.FC = () => {
     const router = useRouter();
     const [identity, setIdentity] = useState("");
