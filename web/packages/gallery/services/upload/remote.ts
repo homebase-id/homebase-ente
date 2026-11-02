@@ -307,20 +307,35 @@ export const postEnteFile = async (
 };
 
 /**
- * Homebase mode: upload a photo in one request to the Ente → Homebase proxy,
- * which stores it as one Homebase file (the original as the payload, the
- * thumbnail as its thumbnail, the record as content) and answers like
- * {@link postEnteFile}. Instead of Ente's upload URLs, PUTs and POST /files.
+ * Homebase mode: upload a photo in one request to the Ente → Homebase proxy
+ * (homebase-id/ente-homebase-proxy), which keeps it as one Homebase file and
+ * answers like {@link postEnteFile}. The thumbnails and the file are already
+ * encrypted in Homebase's format; the proxy stores them as sent.
  *
- * The parts go in the order the proxy reads them: the request, the thumbnail,
- * then the original, which it streams through.
+ * The parts go in the order the proxy reads them: the request, one per
+ * thumbnail (as listed in the request), then the file, which it streams.
  */
 export const postHomebaseEnteFile = async (
     request: Omit<PostEnteFileRequest, "file" | "thumbnail"> & {
+        fileID: number;
+        contentType: string;
         file: Omit<UploadedFileObjectAttributes, "objectKey">;
         thumbnail: Omit<UploadedFileObjectAttributes, "objectKey">;
+        previewThumbnail:
+            | {
+                  pixelWidth: number;
+                  pixelHeight: number;
+                  contentType: string;
+                  content: string;
+              }
+            | undefined;
+        thumbnails: {
+            pixelWidth: number;
+            pixelHeight: number;
+            contentType: string;
+        }[];
     },
-    thumbnailData: Uint8Array<ArrayBuffer>,
+    thumbnails: Uint8Array<ArrayBuffer>[],
     fileData: Uint8Array<ArrayBuffer>,
 ): Promise<RemoteEnteFile> => {
     const form = new FormData();
@@ -329,7 +344,8 @@ export const postHomebaseEnteFile = async (
         new Blob([JSON.stringify(request)], { type: "application/json" }),
         "request",
     );
-    form.append("thumbnail", new Blob([thumbnailData]), "thumbnail");
+    for (const thumbnail of thumbnails)
+        form.append("thumbnail", new Blob([thumbnail]), "thumbnail");
     form.append("file", new Blob([fileData]), "file");
     const res = await fetch(await apiURL("/homebase/files"), {
         method: "POST",

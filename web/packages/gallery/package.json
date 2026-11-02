@@ -10,6 +10,7 @@
         "ente-accounts": "*",
         "ente-base": "*",
         "ente-contacts": "*",
+        "ente-homebase": "*",
         "ente-utils": "*",
         "exifreader": "4.46.0",
         "hls-video-element": "1.5.11",
