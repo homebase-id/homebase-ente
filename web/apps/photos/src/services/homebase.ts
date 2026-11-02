@@ -25,9 +25,12 @@ import {
     type HomebaseDrive,
     HomebaseHttpError,
     indexedDBCredentialsStore,
+    openRecord,
+    sealRecord,
     xAuthToken,
     YouAuthError,
 } from "ente-homebase";
+import { RemoteHomebaseRecord } from "ente-media/homebase";
 import { t } from "i18next";
 import { z } from "zod";
 
@@ -80,31 +83,37 @@ export const homebaseErrorMessage = (e: unknown) => {
     }
 };
 
+// The key attributes are sealed here with the drive key, the Homebase way,
+// and the proxy keeps them as sent (as "homebase"), never opening them.
 const SessionValidity = z.object({
     hasSetKeys: z.boolean(),
-    keyAttributes: RemoteKeyAttributes.nullish(),
+    homebase: RemoteHomebaseRecord.nullish(),
 });
 
-const fetchKeyAttributes = async () => {
+const fetchKeyAttributes = async (drive: HomebaseDrive) => {
     const res = await fetch(await apiURL("/users/session-validity/v2"), {
         headers: await authenticatedRequestHeaders(),
     });
     ensureOk(res);
-    const { hasSetKeys, keyAttributes } = SessionValidity.parse(
-        await res.json(),
-    );
-    return hasSetKeys && keyAttributes ? keyAttributes : undefined;
+    const { hasSetKeys, homebase } = SessionValidity.parse(await res.json());
+    if (!hasSetKeys || !homebase) return undefined;
+    const { value } = await openRecord(homebase, drive.session.driveKey);
+    return RemoteKeyAttributes.parse(value);
 };
 
 /** PUT /users/attributes; false if another device set them first (403). */
-const putKeyAttributes = async (keyAttributes: KeyAttributes) => {
+const putKeyAttributes = async (
+    drive: HomebaseDrive,
+    keyAttributes: KeyAttributes,
+) => {
+    const { sealed } = await sealRecord(keyAttributes, drive.session.driveKey);
     const res = await fetch(await apiURL("/users/attributes"), {
         method: "PUT",
         headers: {
             ...(await authenticatedRequestHeaders()),
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ keyAttributes }),
+        body: JSON.stringify({ homebase: sealed }),
     });
     if (res.status == 403) return false;
     ensureOk(res);
@@ -135,8 +144,8 @@ const unlockMasterKey = async (
  * Afterwards the app is logged in as usual and can go to the gallery.
  *
  * Prototype: Ente keeps its auth token unencrypted in localStorage and
- * IndexedDB, and here that token is the X-Auth-Token, which holds the drive
- * key.
+ * IndexedDB, and here that token is the X-Auth-Token (the sign-in, but not
+ * the drive key).
  */
 export const logInToEnte = async (drive: HomebaseDrive, password: string) => {
     const { identity } = drive.session;
@@ -151,17 +160,17 @@ export const logInToEnte = async (drive: HomebaseDrive, password: string) => {
         token,
     });
 
-    let keyAttributes = await fetchKeyAttributes();
+    let keyAttributes = await fetchKeyAttributes(drive);
     let masterKey: string;
     if (keyAttributes) {
         masterKey = await unlockMasterKey(password, keyAttributes);
     } else {
         const generated = await generateSignupKeys(password);
-        if (await putKeyAttributes(generated.keyAttributes)) {
+        if (await putKeyAttributes(drive, generated.keyAttributes)) {
             ({ keyAttributes, masterKey } = generated);
         } else {
             // Another device set up Ente first: use its keys.
-            keyAttributes = await fetchKeyAttributes();
+            keyAttributes = await fetchKeyAttributes(drive);
             if (!keyAttributes) throw new Error("Key attributes went missing");
             masterKey = await unlockMasterKey(password, keyAttributes);
         }

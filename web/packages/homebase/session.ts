@@ -1,12 +1,14 @@
 // Signing in to Ente Photos with Homebase from a browser: start YouAuth, finish
 // it on the callback page, and open the app's drive with what it left.
 
+import type { Bytes } from "./bytes";
 import { enteApp, enteDrive, homebaseCallbackPath } from "./constants";
 import { getSecurityContext, openDriveKey } from "./context";
 import { HomebaseDrive } from "./drive";
 import {
     clearCredentials,
     type CredentialsStore,
+    indexedDBCredentialsStore,
     loadCredentials,
     saveCredentials,
 } from "./store";
@@ -99,6 +101,32 @@ export const openSavedHomebaseDrive = async (
 export const hasHomebaseSignIn = async (store: CredentialsStore) =>
     !!(await loadCredentials(store));
 
+let _driveKey: Promise<Bytes> | undefined;
+
+/**
+ * This browser's key for Ente's drive, opened from the saved sign-in once per
+ * page load (one call to the identity). Everything on the drive is sealed and
+ * opened with it here; it's never sent anywhere, the proxy included.
+ */
+export const homebaseDriveKey = (): Promise<Bytes> => {
+    if (!_driveKey) {
+        const opening = openSavedHomebaseDrive(
+            indexedDBCredentialsStore(),
+        ).then((drive) => {
+            if (!drive) throw new Error("Not signed in with Homebase");
+            return drive.session.driveKey;
+        });
+        _driveKey = opening;
+        // A failure isn't kept: the next call tries again.
+        opening.catch(() => {
+            if (_driveKey === opening) _driveKey = undefined;
+        });
+    }
+    return _driveKey;
+};
+
 /** Signs out: forgets the credentials (the drive and its files stay). */
-export const signOutOfHomebase = (store: CredentialsStore) =>
-    clearCredentials(store);
+export const signOutOfHomebase = (store: CredentialsStore) => {
+    _driveKey = undefined;
+    return clearCredentials(store);
+};

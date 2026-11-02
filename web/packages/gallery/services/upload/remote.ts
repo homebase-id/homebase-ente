@@ -7,6 +7,7 @@ import {
     type PublicAlbumsCredentials,
 } from "ente-base/http";
 import { apiURL, uploaderOrigin } from "ente-base/origins";
+import type { SealedRecord } from "ente-homebase";
 import { RemoteEnteFile, type RemoteFileMetadata } from "ente-media/file";
 import type { RemoteMagicMetadata } from "ente-media/magic-metadata";
 import { nullToUndefined } from "ente-utils/transform";
@@ -307,20 +308,40 @@ export const postEnteFile = async (
 };
 
 /**
- * Homebase mode: upload a photo in one request to the Ente → Homebase proxy,
- * which stores it as one Homebase file (the original as the payload, the
- * thumbnail as its thumbnail, the record as content) and answers like
- * {@link postEnteFile}. Instead of Ente's upload URLs, PUTs and POST /files.
+ * Homebase mode: upload a photo in one request to the Ente → Homebase proxy
+ * (homebase-id/ente-homebase-proxy), which keeps it as one Homebase file and
+ * answers like {@link postEnteFile}. Everything is already sealed or encrypted
+ * the Homebase way, with no Ente encryption: the photo's details are sealed
+ * with its key, and the thumbnails and file are encrypted with its key and
+ * the payload IV. The proxy stores them as sent and can open none of them.
  *
- * The parts go in the order the proxy reads them: the request, the thumbnail,
- * then the original, which it streams through.
+ * The parts go in the order the proxy reads them: the request, one per
+ * thumbnail (as listed in the request), then the file, which it streams.
  */
 export const postHomebaseEnteFile = async (
-    request: Omit<PostEnteFileRequest, "file" | "thumbnail"> & {
-        file: Omit<UploadedFileObjectAttributes, "objectKey">;
-        thumbnail: Omit<UploadedFileObjectAttributes, "objectKey">;
+    request: {
+        fileID: number;
+        collectionID: number;
+        /** The photo's details, sealed with its key. */
+        homebase: SealedRecord;
+        /** Base64 of the original's own IV, which its thumbnails share. */
+        payloadIv: string;
+        contentType: string;
+        previewThumbnail:
+            | {
+                  pixelWidth: number;
+                  pixelHeight: number;
+                  contentType: string;
+                  content: string;
+              }
+            | undefined;
+        thumbnails: {
+            pixelWidth: number;
+            pixelHeight: number;
+            contentType: string;
+        }[];
     },
-    thumbnailData: Uint8Array<ArrayBuffer>,
+    thumbnails: Uint8Array<ArrayBuffer>[],
     fileData: Uint8Array<ArrayBuffer>,
 ): Promise<RemoteEnteFile> => {
     const form = new FormData();
@@ -329,7 +350,8 @@ export const postHomebaseEnteFile = async (
         new Blob([JSON.stringify(request)], { type: "application/json" }),
         "request",
     );
-    form.append("thumbnail", new Blob([thumbnailData]), "thumbnail");
+    for (const thumbnail of thumbnails)
+        form.append("thumbnail", new Blob([thumbnail]), "thumbnail");
     form.append("file", new Blob([fileData]), "file");
     const res = await fetch(await apiURL("/homebase/files"), {
         method: "POST",

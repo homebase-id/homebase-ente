@@ -1,10 +1,16 @@
 import { decryptBoxBytes } from "ente-base/crypto";
+import { fileKeyToString } from "ente-homebase";
 import {
     nullishToEmpty,
     nullishToFalse,
     nullToUndefined,
 } from "ente-utils/transform";
 import { z } from "zod";
+import {
+    openHomebaseRecord,
+    PlainMagicMetadata,
+    RemoteHomebaseRecord,
+} from "./homebase";
 import {
     decryptMagicMetadata,
     RemoteMagicMetadata,
@@ -125,9 +131,82 @@ export const RemoteCollection = z.looseObject({
     pubMagicMetadata: RemoteMagicMetadata.nullish().transform(nullToUndefined),
     sharedMagicMetadata:
         RemoteMagicMetadata.nullish().transform(nullToUndefined),
+    // Homebase mode: the album's type, name and settings, sealed by this app
+    // (./homebase). The type above is then only a placeholder.
+    homebase: RemoteHomebaseRecord.nullish().transform(nullToUndefined),
 });
 
 export type RemoteCollection = z.infer<typeof RemoteCollection>;
+
+/**
+ * An album's details as this app seals them in Homebase mode, in place of
+ * Ente's encrypted key, name and magic metadata: the same values, as plain
+ * JSON inside the sealed record.
+ */
+export const HomebaseCollectionDetails = z.object({
+    type: z.string(),
+    name: z.string(),
+    magicMetadata: PlainMagicMetadata.nullish().transform(nullToUndefined),
+    pubMagicMetadata: PlainMagicMetadata.nullish().transform(nullToUndefined),
+});
+
+export type HomebaseCollectionDetails = z.input<
+    typeof HomebaseCollectionDetails
+>;
+
+/**
+ * An album kept the Homebase way: its details open with this browser's drive
+ * key, with no Ente decryption (there's no Ente encryption on them). Its key
+ * is the album's own Homebase key. In Homebase mode albums aren't shared
+ * (Homebase shares its own way), so there are no sharees or shared settings.
+ */
+export const openHomebaseCollection = async (
+    collection: RemoteCollection,
+): Promise<Collection> => {
+    const {
+        owner,
+        encryptedKey,
+        keyDecryptionNonce,
+        encryptedName,
+        nameDecryptionNonce,
+        sharees,
+        attributes,
+        isDeleted,
+        magicMetadata: noMagicMetadata,
+        pubMagicMetadata: noPubMagicMetadata,
+        sharedMagicMetadata: noSharedMagicMetadata,
+        homebase,
+        ...rest
+    } = collection;
+    if (!homebase) throw new Error("Not a Homebase album");
+
+    const { value, fileKey } = await openHomebaseRecord(homebase);
+    const details = HomebaseCollectionDetails.parse(value);
+    const magicMetadata = details.magicMetadata && {
+        ...details.magicMetadata,
+        data: CollectionPrivateMagicMetadataData.parse(
+            details.magicMetadata.data,
+        ),
+    };
+    const pubMagicMetadata = details.pubMagicMetadata && {
+        ...details.pubMagicMetadata,
+        data: CollectionPublicMagicMetadataData.parse(
+            details.pubMagicMetadata.data,
+        ),
+    };
+
+    return {
+        ...rest,
+        key: fileKeyToString(fileKey),
+        owner: parseRemoteCollectionUser(owner),
+        name: details.name,
+        type: details.type,
+        sharees: [],
+        magicMetadata,
+        pubMagicMetadata,
+        sharedMagicMetadata: undefined,
+    };
+};
 
 export const decryptRemoteCollection = async (
     collection: RemoteCollection,
