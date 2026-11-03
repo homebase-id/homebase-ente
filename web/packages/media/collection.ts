@@ -1,5 +1,5 @@
 import { decryptBoxBytes } from "ente-base/crypto";
-import { fileKeyToString } from "ente-homebase";
+import { fileKeyToString, type SealedRecord } from "ente-homebase";
 import {
     nullishToEmpty,
     nullishToFalse,
@@ -33,6 +33,8 @@ export interface Collection {
     // Set by and visible to only the individual sharee; the owner and other
     // sharees never see it.
     sharedMagicMetadata?: MagicMetadata<CollectionShareeMagicMetadataData>;
+    // Homebase mode: the sealed details as stored (see EnteFile.homebase).
+    homebase?: SealedRecord;
 }
 
 export const collectionTypes = [
@@ -201,6 +203,7 @@ export const openHomebaseCollection = async (
         magicMetadata,
         pubMagicMetadata,
         sharedMagicMetadata: undefined,
+        homebase,
     };
 };
 
