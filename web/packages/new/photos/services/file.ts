@@ -1,11 +1,13 @@
 import { authenticatedRequestHeaders, ensureOk } from "ente-base/http";
-import { apiURL } from "ente-base/origins";
+import { apiURL, isHomebaseMode } from "ente-base/origins";
+import type { SealedRecord } from "ente-homebase";
 import type { EnteFile } from "ente-media/file";
 import type {
     FilePrivateMagicMetadataData,
     FilePublicMagicMetadataData,
     ItemVisibility,
 } from "ente-media/file-metadata";
+import { resealHomebaseMagicMetadata } from "ente-media/homebase";
 import {
     createMagicMetadata,
     encryptMagicMetadata,
@@ -58,20 +60,27 @@ const updateFilesPrivateMagicMetadata = async (
     files: EnteFile[],
     updates: FilePrivateMagicMetadataData,
 ) =>
-    putFilesMagicMetadata({
-        metadataList: await Promise.all(
-            files.map(async ({ id, key, magicMetadata }) => ({
-                id,
-                magicMetadata: await encryptMagicMetadata(
-                    createMagicMetadata(
-                        { ...magicMetadata?.data, ...updates },
-                        magicMetadata?.version,
-                    ),
-                    key,
-                ),
-            })),
-        ),
-    });
+    (await isHomebaseMode())
+        ? putFilesMagicMetadata(
+              await homebaseMetadataList(files, "magicMetadata", (f) => [
+                  { ...f.magicMetadata?.data, ...updates },
+                  f.magicMetadata?.version,
+              ]),
+          )
+        : putFilesMagicMetadata({
+              metadataList: await Promise.all(
+                  files.map(async ({ id, key, magicMetadata }) => ({
+                      id,
+                      magicMetadata: await encryptMagicMetadata(
+                          createMagicMetadata(
+                              { ...magicMetadata?.data, ...updates },
+                              magicMetadata?.version,
+                          ),
+                          key,
+                      ),
+                  })),
+              ),
+          });
 
 export interface UpdateMagicMetadataRequest {
     id: number;
@@ -83,8 +92,35 @@ export interface UpdateMultipleMagicMetadataRequest {
     metadataList: UpdateMagicMetadataRequest[];
 }
 
+// Homebase mode: each photo's details sealed again with the change, in place
+// of Ente's encrypted magic metadata.
+interface HomebaseMetadataList {
+    metadataList: { id: number; homebase: SealedRecord }[];
+}
+
+const homebaseMetadataList = async (
+    files: EnteFile[],
+    field: "magicMetadata" | "pubMagicMetadata",
+    change: (file: EnteFile) => [unknown, number | undefined],
+): Promise<HomebaseMetadataList> => ({
+    metadataList: await Promise.all(
+        files.map(async (file) => {
+            const [data, version] = change(file);
+            return {
+                id: file.id,
+                homebase: await resealHomebaseMagicMetadata(
+                    file.homebase,
+                    field,
+                    data,
+                    version,
+                ),
+            };
+        }),
+    ),
+});
+
 const putFilesMagicMetadata = async (
-    updateRequest: UpdateMultipleMagicMetadataRequest,
+    updateRequest: UpdateMultipleMagicMetadataRequest | HomebaseMetadataList,
 ) =>
     ensureOk(
         await fetch(await apiURL("/files/magic-metadata"), {
@@ -110,23 +146,30 @@ const updateFilesPublicMagicMetadata = async (
     files: EnteFile[],
     updates: FilePublicMagicMetadataData,
 ) =>
-    putFilesPublicMagicMetadata({
-        metadataList: await Promise.all(
-            files.map(async ({ id, key, pubMagicMetadata }) => ({
-                id,
-                magicMetadata: await encryptMagicMetadata(
-                    createMagicMetadata(
-                        { ...pubMagicMetadata?.data, ...updates },
-                        pubMagicMetadata?.version,
-                    ),
-                    key,
-                ),
-            })),
-        ),
-    });
+    (await isHomebaseMode())
+        ? putFilesPublicMagicMetadata(
+              await homebaseMetadataList(files, "pubMagicMetadata", (f) => [
+                  { ...f.pubMagicMetadata?.data, ...updates },
+                  f.pubMagicMetadata?.version,
+              ]),
+          )
+        : putFilesPublicMagicMetadata({
+              metadataList: await Promise.all(
+                  files.map(async ({ id, key, pubMagicMetadata }) => ({
+                      id,
+                      magicMetadata: await encryptMagicMetadata(
+                          createMagicMetadata(
+                              { ...pubMagicMetadata?.data, ...updates },
+                              pubMagicMetadata?.version,
+                          ),
+                          key,
+                      ),
+                  })),
+              ),
+          });
 
 const putFilesPublicMagicMetadata = async (
-    updateRequest: UpdateMultipleMagicMetadataRequest,
+    updateRequest: UpdateMultipleMagicMetadataRequest | HomebaseMetadataList,
 ) =>
     ensureOk(
         await fetch(await apiURL("/files/public-magic-metadata"), {

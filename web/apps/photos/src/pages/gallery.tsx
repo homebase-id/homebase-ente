@@ -147,6 +147,7 @@ import {
 import { contactsGetDiff, contactsGetProfilePicture } from "ente-photos-wasm";
 
 import { ensureAuthenticatedSession } from "@/services/authenticated-session";
+import { homebaseResumeRoute } from "@/services/homebase";
 import { postPullFiles, prePullFiles, pullFiles } from "@/services/pull";
 import { uploadManager } from "@/services/upload-manager";
 import watcher from "@/services/watch";
@@ -994,7 +995,9 @@ const Page: React.FC = () => {
                 }
                 if (!(await masterKeyFromSession())) {
                     clearSessionStorage();
-                    void router.push("/credentials");
+                    void homebaseResumeRoute().then(
+                        (route) => void router.push(route ?? "/credentials"),
+                    );
                     if (strict)
                         throw new Error(
                             "Remote pull failed: missing master key",

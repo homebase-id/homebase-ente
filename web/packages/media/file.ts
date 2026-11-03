@@ -1,6 +1,6 @@
 import { decryptBox, decryptMetadataJSON } from "ente-base/crypto";
 import log from "ente-base/log";
-import { fileKeyToString } from "ente-homebase";
+import { fileKeyToString, type SealedRecord } from "ente-homebase";
 import { nullishToBlank, nullToUndefined } from "ente-utils/transform";
 import { z } from "zod";
 import {
@@ -38,6 +38,9 @@ export interface EnteFile {
     magicMetadata?: MagicMetadata<FilePrivateMagicMetadataData>;
     // Visible to everyone with whom the file is shared.
     pubMagicMetadata?: MagicMetadata<FilePublicMagicMetadataData>;
+    // Homebase mode: the sealed details as stored, so an edit can seal them
+    // again with only its own change (./homebase resealHomebaseRecord).
+    homebase?: SealedRecord;
 }
 
 interface FileObjectAttributes {
@@ -199,6 +202,7 @@ const openHomebaseFile = async (
         metadata,
         magicMetadata,
         pubMagicMetadata,
+        homebase,
     };
 };
 

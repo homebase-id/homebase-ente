@@ -100,6 +100,21 @@ export const sealRecord = async (
     fileKey,
 });
 
+// A sealed record changed by `change`: sealed again with the same key (so a
+// photo's payloads still open with it) and a new IV for the content.
+export const resealRecord = async (
+    sealed: SealedRecord,
+    driveKey: Bytes,
+    change: (value: unknown) => unknown,
+): Promise<SealedRecord> => {
+    const { value, fileKey } = await openRecord(sealed, driveKey);
+    const changed = await sealRecord(change(value), driveKey, {
+        aesKey: fileKey.aesKey,
+        iv: randomBytes(16),
+    });
+    return changed.sealed;
+};
+
 // Opens a sealed record: its parsed JSON and its key.
 export const openRecord = async (
     sealed: SealedRecord,

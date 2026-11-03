@@ -5,7 +5,7 @@ import { haveWindow } from "ente-base/env";
 import { authenticatedRequestHeaders, ensureOk } from "ente-base/http";
 import { apiURL, isHomebaseMode } from "ente-base/origins";
 import { groupFilesByCollectionID } from "ente-gallery/utils/file";
-import { homebaseDriveKey, sealRecord } from "ente-homebase";
+import { homebaseDriveKey, sealRecord, type SealedRecord } from "ente-homebase";
 import {
     CollectionSubType,
     decryptRemoteCollection,
@@ -31,6 +31,10 @@ import {
     type EnteFile,
 } from "ente-media/file";
 import { ItemVisibility, metadataHash } from "ente-media/file-metadata";
+import {
+    resealHomebaseMagicMetadata,
+    resealHomebaseRecord,
+} from "ente-media/homebase";
 import {
     createMagicMetadata,
     encryptMagicMetadata,
@@ -981,6 +985,10 @@ export const renameCollection = async (
     collection: Collection,
     newName: string,
 ) => {
+    if (await isHomebaseMode()) {
+        await renameHomebaseCollection(collection, newName);
+        return;
+    }
     // Named quick links become regular collections.
     if (collection.magicMetadata?.data.subType == CollectionSubType.quicklink) {
         await updateCollectionPrivateMagicMetadata(collection, {
@@ -994,6 +1002,32 @@ export const renameCollection = async (
         encryptedName,
         nameDecryptionNonce,
     });
+};
+
+// Homebase mode: the album's details sealed again with the new name, in one
+// update (a named quick link also becomes a regular album).
+const renameHomebaseCollection = async (
+    { id, homebase, magicMetadata }: Collection,
+    newName: string,
+) => {
+    if (!homebase) throw new Error("Not a Homebase album");
+    const fields: Record<string, unknown> = { name: newName };
+    if (magicMetadata?.data.subType == CollectionSubType.quicklink) {
+        fields.magicMetadata = createMagicMetadata(
+            { ...magicMetadata.data, subType: CollectionSubType.default },
+            magicMetadata.version + 1,
+        );
+    }
+    ensureOk(
+        await fetch(await apiURL("/collections/rename"), {
+            method: "POST",
+            headers: await authenticatedRequestHeaders(),
+            body: JSON.stringify({
+                collectionID: id,
+                homebase: await resealHomebaseRecord(homebase, fields),
+            }),
+        }),
+    );
 };
 
 interface RenameRequest {
@@ -1074,22 +1108,38 @@ export const updateCollectionLayout = async (
 
 // Every metadata merge below requires current remote data and version.
 const updateCollectionPrivateMagicMetadata = async (
-    { id, key, magicMetadata }: Collection,
+    { id, key, magicMetadata, homebase }: Collection,
     updates: CollectionPrivateMagicMetadataData,
 ) =>
-    putCollectionsMagicMetadata({
-        id,
-        magicMetadata: await encryptMagicMetadata(
-            createMagicMetadata(
-                { ...magicMetadata?.data, ...updates },
-                magicMetadata?.version,
-            ),
-            key,
-        ),
-    });
+    (await isHomebaseMode())
+        ? putCollectionsMagicMetadata({
+              id,
+              homebase: await resealHomebaseMagicMetadata(
+                  homebase,
+                  "magicMetadata",
+                  { ...magicMetadata?.data, ...updates },
+                  magicMetadata?.version,
+              ),
+          })
+        : putCollectionsMagicMetadata({
+              id,
+              magicMetadata: await encryptMagicMetadata(
+                  createMagicMetadata(
+                      { ...magicMetadata?.data, ...updates },
+                      magicMetadata?.version,
+                  ),
+                  key,
+              ),
+          });
+
+// Homebase mode: the album's details sealed again with the change.
+interface HomebaseMagicMetadataRequest {
+    id: number;
+    homebase: SealedRecord;
+}
 
 const putCollectionsMagicMetadata = async (
-    updateRequest: UpdateMagicMetadataRequest,
+    updateRequest: UpdateMagicMetadataRequest | HomebaseMagicMetadataRequest,
 ) =>
     ensureOk(
         await fetch(await apiURL("/collections/magic-metadata"), {
@@ -1100,22 +1150,32 @@ const putCollectionsMagicMetadata = async (
     );
 
 const updateCollectionPublicMagicMetadata = async (
-    { id, key, pubMagicMetadata }: Collection,
+    { id, key, pubMagicMetadata, homebase }: Collection,
     updates: CollectionPublicMagicMetadataData,
 ) =>
-    putCollectionsPublicMagicMetadata({
-        id,
-        magicMetadata: await encryptMagicMetadata(
-            createMagicMetadata(
-                { ...pubMagicMetadata?.data, ...updates },
-                pubMagicMetadata?.version,
-            ),
-            key,
-        ),
-    });
+    (await isHomebaseMode())
+        ? putCollectionsPublicMagicMetadata({
+              id,
+              homebase: await resealHomebaseMagicMetadata(
+                  homebase,
+                  "pubMagicMetadata",
+                  { ...pubMagicMetadata?.data, ...updates },
+                  pubMagicMetadata?.version,
+              ),
+          })
+        : putCollectionsPublicMagicMetadata({
+              id,
+              magicMetadata: await encryptMagicMetadata(
+                  createMagicMetadata(
+                      { ...pubMagicMetadata?.data, ...updates },
+                      pubMagicMetadata?.version,
+                  ),
+                  key,
+              ),
+          });
 
 const putCollectionsPublicMagicMetadata = async (
-    updateRequest: UpdateMagicMetadataRequest,
+    updateRequest: UpdateMagicMetadataRequest | HomebaseMagicMetadataRequest,
 ) =>
     ensureOk(
         await fetch(await apiURL("/collections/public-magic-metadata"), {

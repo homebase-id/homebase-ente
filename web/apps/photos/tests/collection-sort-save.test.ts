@@ -16,6 +16,7 @@ vi.mock("ente-base/http", async (importOriginal) => ({
 }));
 vi.mock("ente-base/origins", () => ({
     apiURL: (path: string) => Promise.resolve(`https://example.invalid${path}`),
+    isHomebaseMode: () => Promise.resolve(false),
 }));
 
 const fetchMock = vi.fn();
