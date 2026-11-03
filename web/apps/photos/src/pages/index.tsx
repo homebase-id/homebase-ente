@@ -1,5 +1,6 @@
 import { DevSettingsDialog } from "@/components/auth/DevSettingsDialog";
 import { PhotosAuthShell } from "@/components/PhotosAuthShell";
+import { homebaseResumeRoute } from "@/services/homebase";
 import { LoginContents } from "ente-accounts/components/LoginContents";
 import { SignUpContents } from "ente-accounts/components/SignUpContents";
 import { savedPartialLocalUser } from "ente-accounts/services/accounts-db";
@@ -91,8 +92,12 @@ const Page: React.FC = () => {
             }
 
             await updateSessionFromElectronSafeStorageIfNeeded();
+            const homebaseRoute = await homebaseResumeRoute();
             if (haveMasterKeyInSession() && (await savedAuthToken())) {
                 await router.push("/gallery");
+            } else if (homebaseRoute) {
+                // Not Ente's /verify: its password is the hidden one.
+                await router.push(homebaseRoute);
             } else if (savedPartialLocalUser()?.email) {
                 await router.push("/verify");
             }

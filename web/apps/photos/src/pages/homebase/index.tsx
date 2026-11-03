@@ -5,6 +5,7 @@ import { Message } from "ente-accounts/components/auth/Message";
 import { ScreenHeader } from "ente-accounts/components/auth/ScreenHeader";
 import { ActivityIndicator } from "ente-base/components/mui/ActivityIndicator";
 import log from "ente-base/log";
+import { isHomebaseMode } from "ente-base/origins";
 import {
     ensureEntePassword,
     getProfile,
@@ -24,6 +25,7 @@ import {
     homebaseStore,
     logInToEnte,
 } from "../../services/homebase";
+import { photosLogout } from "../../services/logout";
 
 interface SignedIn {
     profile: HomebaseProfile;
@@ -51,12 +53,23 @@ const Page: React.FC = () => {
         const effect = { cancelled: false };
         void (async () => {
             try {
+                // Ente was set up for Homebase before: unlock it and go on to
+                // the gallery, since this page is for the first sign-in.
+                const returning = await isHomebaseMode();
                 const drive = await openSavedHomebaseDrive(homebaseStore());
                 if (!drive) {
-                    await router.replace("/");
+                    // Ente's saved login, with no Homebase sign-in to unlock
+                    // it, would send the start page back here.
+                    if (returning) await photosLogout();
+                    else await router.replace("/");
                     return;
                 }
                 const { password, created } = await ensureEntePassword(drive);
+                if (returning) {
+                    await logInToEnte(drive, password);
+                    if (!effect.cancelled) await router.replace("/gallery");
+                    return;
+                }
                 opened.current = { drive, password };
                 const fingerprint = await passwordFingerprint(password);
                 const profile = await getProfile(drive.session.identity);
@@ -102,7 +115,12 @@ const Page: React.FC = () => {
         }
     }, [router]);
 
+    // Ente's own login goes too, else the start page sends it back here.
     const signOut = useCallback(async () => {
+        if (await isHomebaseMode()) {
+            await photosLogout();
+            return;
+        }
         await signOutOfHomebase(homebaseStore());
         await router.replace("/");
     }, [router]);

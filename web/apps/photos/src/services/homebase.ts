@@ -16,12 +16,14 @@ import {
 } from "ente-accounts/services/user";
 import { authenticatedRequestHeaders, ensureOk } from "ente-base/http";
 import { setKV } from "ente-base/kv";
-import { apiURL } from "ente-base/origins";
+import log from "ente-base/log";
+import { apiURL, isHomebaseMode } from "ente-base/origins";
 import { saveAuthToken } from "ente-base/token";
 import {
     type CredentialsStore,
     enteEmail,
     enteUserID,
+    hasHomebaseSignIn,
     type HomebaseDrive,
     HomebaseHttpError,
     indexedDBCredentialsStore,
@@ -49,6 +51,22 @@ let _store: CredentialsStore | undefined;
 
 // Where this browser keeps its Homebase sign-in (sealed, in IndexedDB).
 export const homebaseStore = () => (_store ??= indexedDBCredentialsStore());
+
+// Where a returning Homebase sign-in goes instead of Ente's own login. Ente's
+// password is the hidden one on the drive, so its /verify and /credentials
+// can't unlock the library; /homebase can. Also taken when Ente was set up for
+// Homebase but the sign-in is gone, so /homebase can clear what's left.
+export const homebaseResumeRoute = async (): Promise<string | undefined> => {
+    try {
+        if (await hasHomebaseSignIn(homebaseStore())) return "/homebase";
+        if (await isHomebaseMode()) return "/homebase";
+    } catch (e) {
+        log.error(
+            `Failed to read the Homebase sign-in: ${homebaseFailureLabel(e)}`,
+        );
+    }
+    return undefined;
+};
 
 // What to log about a failure: its kind and HTTP status, never the error
 // itself, since a failing call's context could hold a secret.
