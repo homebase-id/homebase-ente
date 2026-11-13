@@ -108,7 +108,7 @@ jobs:
                   ref: ${{ needs.build-metadata.outputs.commit_sha }}
 
             - name: Setup JDK 17
-              uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+              uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
               with:
                   distribution: "temurin"
                   java-version: "17"
@@ -252,7 +252,7 @@ jobs:
               working-directory: mobile/apps/photos/ios
 
             - name: Import Apple Distribution certificate
-              uses: Apple-Actions/import-codesign-certs@77ba2a2a8f5cfc8c405ebf3159f767c323e238f9 # v7.1.0
+              uses: Apple-Actions/import-codesign-certs@288b8ec97b82c66b6f2a6baaf7acc8dfbcbe331c # v7.2.0
               with:
                   p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_BASE64 }}
                   p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
