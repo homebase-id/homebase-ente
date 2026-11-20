@@ -8,11 +8,11 @@
         "test": "vitest --run"
     },
     "dependencies": {
-        "idb": "8.0.3"
+        "idb": "8.0.4"
     },
     "devDependencies": {
-        "@types/node": "24.19.2",
+        "@types/node": "26.6.1",
         "ente-build-config": "*",
-        "vitest": "5.0.4"
+        "vitest": "5.1.0"
     }
 }
