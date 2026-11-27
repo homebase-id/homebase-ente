@@ -108,7 +108,7 @@ jobs:
                   persist-credentials: false
 
             - name: Prepare dependency update
-              uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675 # v1.13
+              uses: openai/codex-action@306c6a196a99dcc6582530c396a19d2672d5e9ec # v1.14
               env:
                   GH_TOKEN: ${{ github.token }}
                   CARGO_HOME: /tmp/cargo
@@ -152,7 +152,7 @@ jobs:
             matrix:
                 pr: ${{ fromJSON(needs.find.outputs.prs) }}
         steps:
-            - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+            - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
               id: app
               with:
                   client-id: ${{ secrets.ENTE_AGENT_GH_CLIENT_ID }}
